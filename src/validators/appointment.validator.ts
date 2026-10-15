@@ -95,21 +95,39 @@ export const cancelAppointmentSchema = z.object({
     .or(z.literal('')),
 });
 
-export const appointmentQuerySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
-  doctorId: z.string().regex(objectIdRegex, 'Invalid doctor ID format').optional(),
-  patientId: z.string().regex(objectIdRegex, 'Invalid patient ID format').optional(),
-  departmentId: z.string().regex(objectIdRegex, 'Invalid department ID format').optional(),
-  date: z.string().regex(dateRegex, 'Date must be YYYY-MM-DD').optional(),
-  status: z
-    .enum(['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
-    .optional(),
-  fromDate: z.string().regex(dateRegex, 'From date must be YYYY-MM-DD').optional(),
-  toDate: z.string().regex(dateRegex, 'To date must be YYYY-MM-DD').optional(),
-  sortBy: z.enum(['date', 'startTime', 'createdAt']).default('date'),
-  sortOrder: z.enum(['asc', 'desc']).default('asc'),
-});
+export const appointmentQuerySchema = z
+  .object({
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(15),
+    search: z.string().trim().max(100, 'Search term cannot exceed 100 characters').optional(),
+    doctorId: z.string().regex(objectIdRegex, 'Invalid doctor ID format').optional(),
+    patientId: z.string().regex(objectIdRegex, 'Invalid patient ID format').optional(),
+    departmentId: z.string().regex(objectIdRegex, 'Invalid department ID format').optional(),
+    date: z.string().regex(dateRegex, 'Date must be YYYY-MM-DD').optional(),
+    status: z
+      .enum(['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
+      .optional(),
+    startDate: z.string().regex(dateRegex, 'Start date must be YYYY-MM-DD').optional(),
+    endDate: z.string().regex(dateRegex, 'End date must be YYYY-MM-DD').optional(),
+    fromDate: z.string().regex(dateRegex, 'From date must be YYYY-MM-DD').optional(),
+    toDate: z.string().regex(dateRegex, 'To date must be YYYY-MM-DD').optional(),
+    sortBy: z.enum(['date', 'startTime', 'createdAt', 'status']).default('date'),
+    sortOrder: z.enum(['asc', 'desc']).default('asc'),
+  })
+  .refine(
+    (data) => {
+      const start = data.startDate || data.fromDate;
+      const end = data.endDate || data.toDate;
+      if (start && end) {
+        return start <= end;
+      }
+      return true;
+    },
+    {
+      message: 'Start date must be on or before end date',
+      path: ['endDate'],
+    },
+  );
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;

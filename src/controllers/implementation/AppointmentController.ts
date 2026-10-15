@@ -140,7 +140,7 @@ export class AppointmentController implements IAppointmentController {
     res.status(HTTP_STATUS.OK).json(
       successResponse(MESSAGES.APPOINTMENTS_FETCHED, result.appointments, {
         page: query.page || 1,
-        limit: query.limit || 20,
+        limit: query.limit || 15,
         total: result.total,
         totalPages: result.totalPages,
       }),

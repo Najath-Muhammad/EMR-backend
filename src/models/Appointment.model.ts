@@ -184,5 +184,9 @@ appointmentSchema.index(
 
 appointmentSchema.index({ patient: 1, date: 1 });
 appointmentSchema.index({ department: 1, date: 1 });
+appointmentSchema.index({ doctor: 1, date: 1, status: 1 });
+appointmentSchema.index({ department: 1, date: 1, status: 1 });
+appointmentSchema.index({ date: 1, startTime: 1 });
+appointmentSchema.index({ status: 1, date: 1 });
 
 export const AppointmentModel = model<IAppointment>('Appointment', appointmentSchema);

@@ -8,6 +8,7 @@ export interface IPatientRepository {
   findByNameAndDob(fullName: string, dateOfBirth: string): Promise<PatientDocument[]>;
   findByName(fullName: string): Promise<PatientDocument[]>;
   search(query: SearchPatientsQuery): Promise<{ items: PatientDocument[]; total: number }>;
+  findIdsBySearchTerm(term: string): Promise<string[]>;
   create(data: Partial<PatientDocument>): Promise<PatientDocument>;
   updateById(id: string, data: Partial<PatientDocument>): Promise<PatientDocument | null>;
 }

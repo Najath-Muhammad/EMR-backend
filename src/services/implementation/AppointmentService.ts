@@ -610,7 +610,10 @@ export class AppointmentService implements IAppointmentService {
 
     // Role-based restrictions:
     if (requestingUser.role === ROLES.DOCTOR) {
-      // DOCTOR only sees their own appointments
+      // DOCTOR only sees their own appointments; reject any attempt to query another doctor
+      if (query.doctorId && query.doctorId !== requestingUser.userId) {
+        throw new ForbiddenError(MESSAGES.FORBIDDEN);
+      }
       filter.doctor = requestingUser.userId;
     } else if (requestingUser.role === ROLES.RECEPTIONIST) {
       // RECEPTIONIST only sees appointments belonging to their assigned department
@@ -620,6 +623,10 @@ export class AppointmentService implements IAppointmentService {
           ? (staff.department as { _id: { toString(): string } })._id.toString()
           : staff.department.toString()
         : null;
+
+      if (query.departmentId && staffDeptId && query.departmentId !== staffDeptId) {
+        throw new ForbiddenError(MESSAGES.RECEPTIONIST_DEPT_RESTRICTED);
+      }
 
       if (staffDeptId) {
         filter.department = staffDeptId;
@@ -641,13 +648,34 @@ export class AppointmentService implements IAppointmentService {
       filter.status = query.status;
     }
 
+    // Free-text patient search (Name, Patient ID, Mobile)
+    if (query.search && query.search.trim().length > 0) {
+      const patientIds = await this.patientRepo.findIdsBySearchTerm(query.search);
+      if (patientIds.length === 0) {
+        // Fast-path: 0 patients match the search term -> 0 appointments can match
+        return {
+          appointments: [],
+          total: 0,
+          totalPages: 1,
+        };
+      }
+      filter.patient = { $in: patientIds };
+    } else if (query.patientId) {
+      filter.patient = query.patientId;
+    }
+
+    // Date / Date range handling
     if (query.date) {
       filter.date = query.date;
-    } else if (query.fromDate || query.toDate) {
-      const dateFilter: { $gte?: string; $lte?: string } = {};
-      if (query.fromDate) dateFilter.$gte = query.fromDate;
-      if (query.toDate) dateFilter.$lte = query.toDate;
-      filter.date = dateFilter;
+    } else {
+      const start = query.startDate || query.fromDate;
+      const end = query.endDate || query.toDate;
+      if (start || end) {
+        const dateFilter: { $gte?: string; $lte?: string } = {};
+        if (start) dateFilter.$gte = start;
+        if (end) dateFilter.$lte = end;
+        filter.date = dateFilter;
+      }
     }
 
     const sortMap: Record<string, 1 | -1> = {};

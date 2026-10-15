@@ -2,7 +2,7 @@ import { AppointmentDocument, IAppointment } from '../../models/Appointment.mode
 
 export interface AppointmentFilter {
   doctor?: string;
-  patient?: string;
+  patient?: string | { $in: string[] };
   department?: string;
   date?: string | { $gte?: string; $lte?: string };
   status?: string;

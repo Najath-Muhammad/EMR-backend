@@ -83,6 +83,29 @@ export class PatientRepository implements IPatientRepository {
     return { items, total };
   }
 
+  async findIdsBySearchTerm(term: string): Promise<string[]> {
+    const trimmed = term.trim();
+    if (!trimmed) return [];
+    const escapedTerm = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const normalizedTerm = normalizePhoneNumber(trimmed);
+
+    const orConditions: Array<FilterQuery<PatientDocument>> = [
+      { patientId: { $regex: new RegExp(escapedTerm, 'i') } },
+      { fullName: { $regex: new RegExp(escapedTerm, 'i') } },
+    ];
+
+    if (normalizedTerm.length >= 3) {
+      orConditions.push({ normalizedPhone: { $regex: new RegExp(normalizedTerm) } });
+    }
+
+    const docs = await PatientModel.find({ $or: orConditions })
+      .select('_id')
+      .limit(200)
+      .lean();
+
+    return docs.map((d) => (d as unknown as { _id: { toString(): string } })._id.toString());
+  }
+
   async create(data: Partial<PatientDocument>): Promise<PatientDocument> {
     const patient = new PatientModel(data);
     return patient.save();
