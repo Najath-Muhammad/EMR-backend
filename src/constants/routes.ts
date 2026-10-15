@@ -44,3 +44,9 @@ export const SLOT_ROUTES = {
   ROOT: '/',
   PREVIEW: '/preview',
 } as const;
+
+export const PATIENT_ROUTES = {
+  ROOT: '/',
+  BY_ID: '/:id',
+  CHECK_DUPLICATES: '/check-duplicates',
+} as const;

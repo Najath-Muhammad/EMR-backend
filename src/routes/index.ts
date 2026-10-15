@@ -6,6 +6,7 @@ import departmentRouter from './department.routes';
 import staffRouter from './staff.routes';
 import doctorRouter from './doctor.routes';
 import slotRouter from './slot.routes';
+import patientRouter from './patient.routes';
 
 const router = Router();
 
@@ -26,5 +27,8 @@ router.use(`${ROUTES.BASE}${ROUTES.DOCTORS}`, doctorRouter);
 
 // Mount slot routes under /api/v1/slots
 router.use(`${ROUTES.BASE}${ROUTES.SLOTS}`, slotRouter);
+
+// Mount patient routes under /api/v1/patients
+router.use(`${ROUTES.BASE}${ROUTES.PATIENTS}`, patientRouter);
 
 export default router;

@@ -57,6 +57,15 @@ export const MESSAGES = {
   SLOTS_PREVIEW_GENERATED: 'Slot preview generated successfully',
   DOCTOR_NOT_SCHEDULED: 'Doctor has no active schedule for the selected day',
 
+  // Patient
+  PATIENT_CREATED: 'Patient registered successfully',
+  PATIENT_FETCHED: 'Patient details retrieved successfully',
+  PATIENTS_FETCHED: 'Patients list retrieved successfully',
+  PATIENT_UPDATED: 'Patient details updated successfully',
+  PATIENT_DUPLICATE_FOUND: 'Potential duplicate patient records found',
+  PATIENT_NOT_FOUND: 'Patient record not found',
+  PATIENT_ID_EXISTS: 'A patient with this identifier already exists',
+
   // Resources
   NOT_FOUND: 'The requested resource was not found',
   ALREADY_EXISTS: 'Resource already exists',
