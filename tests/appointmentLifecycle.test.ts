@@ -533,5 +533,52 @@ describe('Phase 6 — Appointment Lifecycle & Doctor Workflow', () => {
       expect(updateRes.body.data.purpose).toBe('Updated Purpose Text');
       expect(updateRes.body.data.notes).toBe('Updated Notes Information');
     });
+
+    it('scopes GET /api/v1/appointments to the receptionist assigned department only', async () => {
+      // 1. Super Admin books an appointment in Neurology
+      const neuroRes = await request(app)
+        .post('/api/v1/appointments')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          patientId,
+          doctorId: otherDoctorId,
+          departmentId: neuroDeptId,
+          date: FUTURE_TUESDAY,
+          startTime: '14:00',
+          endTime: '14:30',
+          purpose: 'Neurology Consultation',
+        });
+      expect(neuroRes.status).toBe(201);
+      const neuroApptId = neuroRes.body.data.id;
+
+      // 2. Receptionist (Cardiology) lists appointments
+      const listRes = await request(app)
+        .get('/api/v1/appointments')
+        .set('Authorization', `Bearer ${receptionistToken}`);
+
+      expect(listRes.status).toBe(200);
+      const returnedAppointments = listRes.body.data as Array<{ id: string; department: { id: string } }>;
+      // None of the returned appointments should belong to Neurology
+      expect(returnedAppointments.some((a) => a.id === neuroApptId)).toBe(false);
+      // All returned appointments must belong to Cardiology
+      for (const a of returnedAppointments) {
+        expect(a.department.id).toBe(cardioDeptId);
+      }
+
+      // 3. Receptionist attempts to view Neurology appointment details -> 403 Forbidden
+      const detailRes = await request(app)
+        .get(`/api/v1/appointments/${neuroApptId}`)
+        .set('Authorization', `Bearer ${receptionistToken}`);
+      expect(detailRes.status).toBe(403);
+      expect(detailRes.body.success).toBe(false);
+
+      // 4. Receptionist attempts to cancel Neurology appointment -> 403 Forbidden
+      const cancelRes = await request(app)
+        .patch(`/api/v1/appointments/${neuroApptId}/cancel`)
+        .set('Authorization', `Bearer ${receptionistToken}`)
+        .send({ reason: 'Attempt unauthorized cross-department cancel' });
+      expect(cancelRes.status).toBe(403);
+      expect(cancelRes.body.success).toBe(false);
+    });
   });
 });
