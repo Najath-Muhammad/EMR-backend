@@ -9,7 +9,12 @@ import { IPatientRepository } from '../../repositories/interfaces/IPatientReposi
 import { IStaffRepository } from '../../repositories/interfaces/IStaffRepository';
 import { IDepartmentRepository } from '../../repositories/interfaces/IDepartmentRepository';
 import { IScheduleRepository } from '../../repositories/interfaces/IScheduleRepository';
-import { CreateAppointmentInput, AppointmentQuery } from '../../validators/appointment.validator';
+import {
+  CreateAppointmentInput,
+  UpdateAppointmentInput,
+  RescheduleAppointmentInput,
+  AppointmentQuery,
+} from '../../validators/appointment.validator';
 import { AppointmentResponseDto } from '../../dtos/appointment.dto';
 import { AppointmentMapper } from '../../mappers/appointment.mapper';
 import { timeToMinutes } from '../../validators/schedule.validator';
@@ -18,6 +23,7 @@ import {
   BadRequestError,
   ConflictError,
   ForbiddenError,
+  UnauthorizedError,
 } from '../../errors/AppError';
 import { MESSAGES } from '../../constants/messages';
 import { ROLES } from '../../constants/roles';
@@ -36,7 +42,38 @@ export class AppointmentService implements IAppointmentService {
     input: CreateAppointmentInput,
     creatorUserId: string,
   ): Promise<AppointmentResponseDto> {
-    // 1. Validate Patient
+    // 0. Look up creator and validate role / department restrictions
+    const creator = await this.staffRepo.findById(creatorUserId);
+    if (!creator) {
+      throw new UnauthorizedError(MESSAGES.UNAUTHORIZED);
+    }
+
+    let effectiveDeptId: string | undefined = input.departmentId;
+
+    if (creator.role === ROLES.RECEPTIONIST) {
+      const creatorDeptId = creator.department
+        ? typeof creator.department === 'object' && '_id' in (creator.department as object)
+          ? (creator.department as { _id: { toString(): string } })._id.toString()
+          : creator.department.toString()
+        : null;
+
+      if (!creatorDeptId) {
+        throw new BadRequestError('Receptionist does not have an assigned department');
+      }
+
+      // If receptionist explicitly supplied a departmentId, verify it matches their assigned department
+      if (input.departmentId && input.departmentId !== creatorDeptId) {
+        throw new ForbiddenError(MESSAGES.RECEPTIONIST_DEPT_RESTRICTED);
+      }
+
+      effectiveDeptId = creatorDeptId;
+    } else if (creator.role === ROLES.SUPER_ADMIN) {
+      if (!effectiveDeptId) {
+        throw new BadRequestError('Department ID is required for Super Admin appointment creation');
+      }
+    }
+
+    // 1. Validate Patient (Universal patient record - any patient can visit any department)
     const patient = await this.patientRepo.findById(input.patientId);
     if (!patient || !patient.isActive) {
       throw new NotFoundError(MESSAGES.PATIENT_NOT_FOUND);
@@ -49,9 +86,9 @@ export class AppointmentService implements IAppointmentService {
     }
 
     // 3. Validate Department
-    const department = await this.departmentRepo.findById(input.departmentId);
+    const department = await this.departmentRepo.findById(effectiveDeptId!);
     if (!department || !department.isActive) {
-      throw new NotFoundError('Department not found or inactive');
+      throw new NotFoundError(MESSAGES.DEPARTMENT_NOT_FOUND);
     }
 
     // 4. Validate Doctor Department assignment
@@ -60,7 +97,7 @@ export class AppointmentService implements IAppointmentService {
         ? (doctor.department as { _id: { toString(): string } })._id.toString()
         : doctor.department?.toString();
 
-    if (doctorDeptId !== input.departmentId) {
+    if (doctorDeptId !== effectiveDeptId) {
       throw new BadRequestError(MESSAGES.APPOINTMENT_DOCTOR_MISMATCH_DEPT);
     }
 
@@ -133,7 +170,7 @@ export class AppointmentService implements IAppointmentService {
         patient: new Types.ObjectId(input.patientId),
         patientName: patient.fullName,
         doctor: new Types.ObjectId(input.doctorId),
-        department: new Types.ObjectId(input.departmentId),
+        department: new Types.ObjectId(effectiveDeptId),
         date: input.date,
         startTime: input.startTime,
         endTime: input.endTime,
@@ -144,6 +181,327 @@ export class AppointmentService implements IAppointmentService {
       });
 
       return AppointmentMapper.toResponseDto(appointment);
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        (err as { code: unknown }).code === 11000
+      ) {
+        throw new ConflictError(MESSAGES.APPOINTMENT_SLOT_ALREADY_BOOKED);
+      }
+      throw err;
+    }
+  }
+
+  async markAsArrived(
+    id: string,
+    staffUserId: string,
+  ): Promise<AppointmentResponseDto> {
+    const appointment = await this.appointmentRepo.findById(id);
+    if (!appointment) {
+      throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
+    }
+
+    // Check staff role & department scoping if receptionist
+    const staff = await this.staffRepo.findById(staffUserId);
+    if (!staff) {
+      throw new UnauthorizedError(MESSAGES.UNAUTHORIZED);
+    }
+
+    if (staff.role === ROLES.RECEPTIONIST) {
+      const staffDeptId = staff.department
+        ? typeof staff.department === 'object' && '_id' in (staff.department as object)
+          ? (staff.department as { _id: { toString(): string } })._id.toString()
+          : staff.department.toString()
+        : null;
+
+      const appDeptId = appointment.department
+        ? typeof appointment.department === 'object' && '_id' in (appointment.department as object)
+          ? (appointment.department as { _id: { toString(): string } })._id.toString()
+          : appointment.department.toString()
+        : null;
+
+      if (staffDeptId && appDeptId && staffDeptId !== appDeptId) {
+        throw new ForbiddenError(MESSAGES.RECEPTIONIST_DEPT_RESTRICTED);
+      }
+    }
+
+    if (appointment.status === 'ARRIVED') {
+      throw new BadRequestError('Appointment is already marked as arrived');
+    }
+
+    if (appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED') {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_CANNOT_REOPEN);
+    }
+
+    if (appointment.status !== 'SCHEDULED' && appointment.status !== 'CONFIRMED') {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_CANNOT_TRANSITION);
+    }
+
+    const updated = await this.appointmentRepo.update(id, {
+      status: 'ARRIVED',
+      arrivedAt: new Date(),
+      arrivedBy: new Types.ObjectId(staffUserId),
+    });
+
+    return AppointmentMapper.toResponseDto(updated!);
+  }
+
+  async completeAppointment(
+    id: string,
+    requestingUser: RequestingUserContext,
+    consultationNotes?: string,
+  ): Promise<AppointmentResponseDto> {
+    const appointment = await this.appointmentRepo.findById(id);
+    if (!appointment) {
+      throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
+    }
+
+    // Doctor privacy isolation: Doctor can only complete their own appointments
+    if (requestingUser.role === ROLES.DOCTOR) {
+      const docDoctorId =
+        appointment.doctor && typeof appointment.doctor === 'object' && '_id' in (appointment.doctor as object)
+          ? (appointment.doctor as { _id: { toString(): string } })._id.toString()
+          : appointment.doctor?.toString();
+
+      if (docDoctorId !== requestingUser.userId) {
+        throw new ForbiddenError(MESSAGES.FORBIDDEN);
+      }
+    } else if (requestingUser.role !== ROLES.SUPER_ADMIN) {
+      throw new ForbiddenError(MESSAGES.FORBIDDEN);
+    }
+
+    if (appointment.status === 'COMPLETED') {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_ALREADY_COMPLETED);
+    }
+
+    if (appointment.status === 'CANCELLED') {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_CANNOT_REOPEN);
+    }
+
+    const updatePayload: Record<string, unknown> = {
+      status: 'COMPLETED',
+      completedAt: new Date(),
+      completedBy: new Types.ObjectId(requestingUser.userId),
+    };
+
+    if (consultationNotes !== undefined) {
+      updatePayload['consultationNotes'] = consultationNotes.trim();
+    }
+
+    const updated = await this.appointmentRepo.update(id, updatePayload);
+    return AppointmentMapper.toResponseDto(updated!);
+  }
+
+  async updateAppointment(
+    id: string,
+    requestingUser: RequestingUserContext,
+    input: UpdateAppointmentInput,
+  ): Promise<AppointmentResponseDto> {
+    const appointment = await this.appointmentRepo.findById(id);
+    if (!appointment) {
+      throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
+    }
+
+    // Role check: RECEPTIONIST or SUPER_ADMIN
+    if (requestingUser.role === ROLES.RECEPTIONIST) {
+      const staff = await this.staffRepo.findById(requestingUser.userId);
+      const staffDeptId = staff?.department
+        ? typeof staff.department === 'object' && '_id' in (staff.department as object)
+          ? (staff.department as { _id: { toString(): string } })._id.toString()
+          : staff.department.toString()
+        : null;
+
+      const appDeptId = appointment.department
+        ? typeof appointment.department === 'object' && '_id' in (appointment.department as object)
+          ? (appointment.department as { _id: { toString(): string } })._id.toString()
+          : appointment.department.toString()
+        : null;
+
+      if (staffDeptId && appDeptId && staffDeptId !== appDeptId) {
+        throw new ForbiddenError(MESSAGES.RECEPTIONIST_DEPT_RESTRICTED);
+      }
+    } else if (requestingUser.role !== ROLES.SUPER_ADMIN) {
+      throw new ForbiddenError(MESSAGES.FORBIDDEN);
+    }
+
+    if (appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED') {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_CANNOT_REOPEN);
+    }
+
+    const updatePayload: Record<string, unknown> = {};
+    if (input.purpose !== undefined) {
+      updatePayload['purpose'] = input.purpose.trim();
+    }
+    if (input.notes !== undefined) {
+      updatePayload['notes'] = input.notes.trim();
+    }
+
+    const updated = await this.appointmentRepo.update(id, updatePayload);
+    return AppointmentMapper.toResponseDto(updated!);
+  }
+
+  async updateConsultationNotes(
+    id: string,
+    requestingUser: RequestingUserContext,
+    notes: string,
+  ): Promise<AppointmentResponseDto> {
+    const appointment = await this.appointmentRepo.findById(id);
+    if (!appointment) {
+      throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
+    }
+
+    if (requestingUser.role === ROLES.DOCTOR) {
+      const docDoctorId =
+        appointment.doctor && typeof appointment.doctor === 'object' && '_id' in (appointment.doctor as object)
+          ? (appointment.doctor as { _id: { toString(): string } })._id.toString()
+          : appointment.doctor?.toString();
+
+      if (docDoctorId !== requestingUser.userId) {
+        throw new ForbiddenError(MESSAGES.APPOINTMENT_DOCTOR_ONLY_CONSULTATION);
+      }
+    } else if (requestingUser.role !== ROLES.SUPER_ADMIN) {
+      throw new ForbiddenError(MESSAGES.APPOINTMENT_DOCTOR_ONLY_CONSULTATION);
+    }
+
+    if (appointment.status === 'CANCELLED') {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_CANNOT_REOPEN);
+    }
+
+    const updated = await this.appointmentRepo.update(id, {
+      consultationNotes: notes.trim(),
+    });
+
+    return AppointmentMapper.toResponseDto(updated!);
+  }
+
+  async rescheduleAppointment(
+    id: string,
+    requestingUser: RequestingUserContext,
+    input: RescheduleAppointmentInput,
+  ): Promise<AppointmentResponseDto> {
+    const appointment = await this.appointmentRepo.findById(id);
+    if (!appointment) {
+      throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
+    }
+
+    if (appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED') {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_CANNOT_REOPEN);
+    }
+
+    // Check receptionist department restriction
+    if (requestingUser.role === ROLES.RECEPTIONIST) {
+      const staff = await this.staffRepo.findById(requestingUser.userId);
+      const staffDeptId = staff?.department
+        ? typeof staff.department === 'object' && '_id' in (staff.department as object)
+          ? (staff.department as { _id: { toString(): string } })._id.toString()
+          : staff.department.toString()
+        : null;
+
+      const appDeptId = appointment.department
+        ? typeof appointment.department === 'object' && '_id' in (appointment.department as object)
+          ? (appointment.department as { _id: { toString(): string } })._id.toString()
+          : appointment.department.toString()
+        : null;
+
+      if (staffDeptId && appDeptId && staffDeptId !== appDeptId) {
+        throw new ForbiddenError(MESSAGES.RECEPTIONIST_DEPT_RESTRICTED);
+      }
+    } else if (requestingUser.role !== ROLES.SUPER_ADMIN) {
+      throw new ForbiddenError(MESSAGES.FORBIDDEN);
+    }
+
+    const doctorId =
+      appointment.doctor && typeof appointment.doctor === 'object' && '_id' in (appointment.doctor as object)
+        ? (appointment.doctor as { _id: { toString(): string } })._id.toString()
+        : appointment.doctor?.toString();
+
+    if (!doctorId) {
+      throw new BadRequestError('Doctor not associated with this appointment');
+    }
+
+    // Timezone & Past Date/Time validation for new date/time
+    const tz = env.HOSPITAL_TIMEZONE || 'UTC';
+    const { isPastDate, isToday, currentTimeMinutes } = this.getTimeComparison(input.date, tz);
+    const startMinutes = timeToMinutes(input.startTime);
+    const endMinutes = timeToMinutes(input.endTime);
+
+    if (isPastDate || (isToday && startMinutes < currentTimeMinutes)) {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_PAST_DATE);
+    }
+
+    // Validate Doctor Schedule
+    const schedule = await this.scheduleRepo.findByDoctorId(doctorId);
+    if (!schedule || !schedule.isActive) {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_NO_SCHEDULE);
+    }
+
+    const slotDuration = endMinutes - startMinutes;
+    if (slotDuration !== schedule.slotDuration) {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_INVALID_DURATION);
+    }
+
+    const { dayOfWeek } = this.getDayInfoForDate(input.date, tz);
+    const dayConfig = schedule.workingDays.find((d) => d.dayOfWeek === dayOfWeek);
+    if (!dayConfig || !dayConfig.isEnabled) {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_DAY_OFF);
+    }
+
+    const fitsInSession = dayConfig.sessions.some(
+      (session) =>
+        startMinutes >= timeToMinutes(session.startTime) &&
+        endMinutes <= timeToMinutes(session.endTime),
+    );
+    if (!fitsInSession) {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_OUTSIDE_SESSION);
+    }
+
+    const overlapsBreak = dayConfig.breaks.some((brk) => {
+      const breakStart = timeToMinutes(brk.startTime);
+      const breakEnd = timeToMinutes(brk.endTime);
+      return startMinutes < breakEnd && endMinutes > breakStart;
+    });
+    if (overlapsBreak) {
+      throw new BadRequestError(MESSAGES.APPOINTMENT_BREAK_CONFLICT);
+    }
+
+    // Overlapping appointment check on new date/time, excluding this appointment
+    const existingAppointments = await this.appointmentRepo.findByDoctorAndDate(
+      doctorId,
+      input.date,
+    );
+    const hasOverlap = existingAppointments.some((app) => {
+      if (app._id.toString() === id) return false;
+      const appStart = timeToMinutes(app.startTime);
+      const appEnd = timeToMinutes(app.endTime);
+      return startMinutes < appEnd && endMinutes > appStart;
+    });
+    if (hasOverlap) {
+      throw new ConflictError(MESSAGES.APPOINTMENT_SLOT_ALREADY_BOOKED);
+    }
+
+    const historyEntry = {
+      previousDate: appointment.date,
+      previousStartTime: appointment.startTime,
+      previousEndTime: appointment.endTime,
+      rescheduledAt: new Date(),
+      rescheduledBy: new Types.ObjectId(requestingUser.userId),
+      reason: input.reason?.trim() || '',
+    };
+
+    const newHistory = [...(appointment.rescheduleHistory || []), historyEntry];
+
+    try {
+      const updated = await this.appointmentRepo.update(id, {
+        date: input.date,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        status: 'CONFIRMED',
+        rescheduleHistory: newHistory,
+      });
+
+      return AppointmentMapper.toResponseDto(updated!);
     } catch (err: unknown) {
       if (
         err &&

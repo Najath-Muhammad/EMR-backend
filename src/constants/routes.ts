@@ -55,4 +55,8 @@ export const APPOINTMENT_ROUTES = {
   ROOT: '/',
   BY_ID: '/:id',
   CANCEL: '/:id/cancel',
+  ARRIVE: '/:id/arrive',
+  COMPLETE: '/:id/complete',
+  RESCHEDULE: '/:id/reschedule',
+  CONSULTATION: '/:id/consultation',
 } as const;

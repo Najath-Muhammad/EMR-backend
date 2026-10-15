@@ -214,7 +214,7 @@ describe('Phase 5 — Appointment Booking & Concurrency Protection', () => {
 
       const res = await request(app)
         .post('/api/v1/appointments')
-        .set('Authorization', `Bearer ${receptionistToken}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(payload);
 
       expect(res.status).toBe(400);

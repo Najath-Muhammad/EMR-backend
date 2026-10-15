@@ -5,11 +5,29 @@ import {
   DoctorRefDto,
   DepartmentRefDto,
   StaffRefDto,
+  RescheduleHistoryDto,
 } from '../dtos/appointment.dto';
 
 interface PopulatedEntity {
   _id: { toString(): string };
   [key: string]: unknown;
+}
+
+function mapStaffRef(ref: unknown): StaffRefDto | null {
+  if (!ref) return null;
+  if (typeof ref === 'object' && '_id' in (ref as object)) {
+    const entity = ref as unknown as PopulatedEntity;
+    return {
+      id: entity._id.toString(),
+      name: (entity['name'] as string) || '',
+      email: (entity['email'] as string) || '',
+    };
+  }
+  return {
+    id: String(ref),
+    name: '',
+    email: '',
+  };
 }
 
 export class AppointmentMapper {
@@ -80,37 +98,19 @@ export class AppointmentMapper {
       };
     }
 
-    let createdByRef: StaffRefDto | null = null;
-    if (doc.createdBy && typeof doc.createdBy === 'object' && '_id' in (doc.createdBy as object)) {
-      const cb = doc.createdBy as unknown as PopulatedEntity;
-      createdByRef = {
-        id: cb._id.toString(),
-        name: (cb['name'] as string) || '',
-        email: (cb['email'] as string) || '',
-      };
-    } else if (doc.createdBy) {
-      createdByRef = {
-        id: doc.createdBy.toString(),
-        name: '',
-        email: '',
-      };
-    }
+    const createdByRef = mapStaffRef(doc.createdBy);
+    const arrivedByRef = mapStaffRef(doc.arrivedBy);
+    const completedByRef = mapStaffRef(doc.completedBy);
+    const cancelledByRef = mapStaffRef(doc.cancelledBy);
 
-    let cancelledByRef: StaffRefDto | null = null;
-    if (doc.cancelledBy && typeof doc.cancelledBy === 'object' && '_id' in (doc.cancelledBy as object)) {
-      const cb = doc.cancelledBy as unknown as PopulatedEntity;
-      cancelledByRef = {
-        id: cb._id.toString(),
-        name: (cb['name'] as string) || '',
-        email: (cb['email'] as string) || '',
-      };
-    } else if (doc.cancelledBy) {
-      cancelledByRef = {
-        id: doc.cancelledBy.toString(),
-        name: '',
-        email: '',
-      };
-    }
+    const rescheduleHistory: RescheduleHistoryDto[] = (doc.rescheduleHistory || []).map((h) => ({
+      previousDate: h.previousDate,
+      previousStartTime: h.previousStartTime,
+      previousEndTime: h.previousEndTime,
+      rescheduledAt: h.rescheduledAt instanceof Date ? h.rescheduledAt.toISOString() : new Date(h.rescheduledAt).toISOString(),
+      rescheduledBy: mapStaffRef(h.rescheduledBy),
+      reason: h.reason || '',
+    }));
 
     return {
       id: doc._id.toString(),
@@ -124,9 +124,15 @@ export class AppointmentMapper {
       purpose: doc.purpose || '',
       notes: doc.notes || '',
       createdBy: createdByRef,
+      arrivedAt: doc.arrivedAt ? doc.arrivedAt.toISOString() : null,
+      arrivedBy: arrivedByRef,
+      completedAt: doc.completedAt ? doc.completedAt.toISOString() : null,
+      completedBy: completedByRef,
+      consultationNotes: doc.consultationNotes || '',
       cancelledAt: doc.cancelledAt ? doc.cancelledAt.toISOString() : null,
       cancelledBy: cancelledByRef,
       cancellationReason: doc.cancellationReason || '',
+      rescheduleHistory,
       createdAt: doc.createdAt ? doc.createdAt.toISOString() : new Date().toISOString(),
       updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : new Date().toISOString(),
     };

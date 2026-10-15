@@ -87,6 +87,15 @@ export const MESSAGES = {
   APPOINTMENT_ALREADY_CANCELLED: 'This appointment has already been cancelled',
   APPOINTMENT_ALREADY_COMPLETED: 'Cannot cancel an appointment that has already been completed',
   APPOINTMENT_CANCEL_FORBIDDEN: 'You do not have permission to cancel this appointment',
+  APPOINTMENT_ARRIVED: 'Patient marked as arrived successfully',
+  APPOINTMENT_COMPLETED: 'Appointment completed successfully',
+  APPOINTMENT_UPDATED: 'Appointment details updated successfully',
+  APPOINTMENT_RESCHEDULED: 'Appointment rescheduled successfully',
+  APPOINTMENT_CONSULTATION_SAVED: 'Consultation notes saved successfully',
+  APPOINTMENT_CANNOT_TRANSITION: 'Invalid appointment status transition',
+  APPOINTMENT_CANNOT_REOPEN: 'Completed or cancelled appointments cannot be modified',
+  APPOINTMENT_DOCTOR_ONLY_CONSULTATION: 'Only the attending physician can edit consultation notes',
+  RECEPTIONIST_DEPT_RESTRICTED: 'Receptionists can only schedule appointments within their assigned department',
 
   // Server
   SERVER_ERROR: 'An unexpected error occurred. Please try again later.',
