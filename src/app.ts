@@ -2,6 +2,7 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import router from './routes';
 import { notFound } from './middlewares/notFound';
@@ -13,7 +14,7 @@ export function createApp(): Application {
   // Security headers
   app.use(helmet());
 
-  // CORS
+  // CORS with credentials for cookies
   app.use(
     cors({
       origin: env.CORS_ORIGINS.split(',').map((o) => o.trim()),
@@ -23,11 +24,14 @@ export function createApp(): Application {
     }),
   );
 
+  // Cookie parsing
+  app.use(cookieParser());
+
   // Body parsing
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
-
+  // HTTP request logging (dev only)
   if (env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
   }
