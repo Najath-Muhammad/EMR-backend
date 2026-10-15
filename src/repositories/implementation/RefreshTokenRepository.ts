@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { RefreshTokenModel, RefreshTokenDocument } from '../../models/RefreshToken.model';
 import { IRefreshTokenRepository } from '../interfaces/IRefreshTokenRepository';
+import { logger } from '../../utils/logger';
 
 export class RefreshTokenRepository implements IRefreshTokenRepository {
   async create(data: {
@@ -9,26 +10,73 @@ export class RefreshTokenRepository implements IRefreshTokenRepository {
     family: string;
     expiresAt: Date;
   }): Promise<RefreshTokenDocument> {
-    return RefreshTokenModel.create(data);
+    try {
+      return await RefreshTokenModel.create(data);
+    } catch (error) {
+      logger.error('Database error in RefreshTokenRepository.create:', {
+        userId: data.userId.toString(),
+        family: data.family,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   async findByHash(tokenHash: string): Promise<RefreshTokenDocument | null> {
-    return RefreshTokenModel.findOne({ tokenHash }).exec();
+    try {
+      return await RefreshTokenModel.findOne({ tokenHash }).exec();
+    } catch (error) {
+      logger.error('Database error in RefreshTokenRepository.findByHash:', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   async revokeById(id: Types.ObjectId | string): Promise<void> {
-    await RefreshTokenModel.findByIdAndUpdate(id, { isRevoked: true }).exec();
+    try {
+      await RefreshTokenModel.findByIdAndUpdate(id, { isRevoked: true }).exec();
+    } catch (error) {
+      logger.error('Database error in RefreshTokenRepository.revokeById:', {
+        id: id.toString(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   async revokeByHash(tokenHash: string): Promise<void> {
-    await RefreshTokenModel.findOneAndUpdate({ tokenHash }, { isRevoked: true }).exec();
+    try {
+      await RefreshTokenModel.findOneAndUpdate({ tokenHash }, { isRevoked: true }).exec();
+    } catch (error) {
+      logger.error('Database error in RefreshTokenRepository.revokeByHash:', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   async revokeFamily(family: string): Promise<void> {
-    await RefreshTokenModel.updateMany({ family }, { isRevoked: true }).exec();
+    try {
+      await RefreshTokenModel.updateMany({ family }, { isRevoked: true }).exec();
+    } catch (error) {
+      logger.error('Database error in RefreshTokenRepository.revokeFamily:', {
+        family,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   async revokeAllForUser(userId: Types.ObjectId | string): Promise<void> {
-    await RefreshTokenModel.updateMany({ userId }, { isRevoked: true }).exec();
+    try {
+      await RefreshTokenModel.updateMany({ userId }, { isRevoked: true }).exec();
+    } catch (error) {
+      logger.error('Database error in RefreshTokenRepository.revokeAllForUser:', {
+        userId: userId.toString(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 }
