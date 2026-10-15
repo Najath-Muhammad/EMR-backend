@@ -4,6 +4,7 @@ export const ROUTES = {
   AUTH: '/auth',
   USERS: '/users',
   DEPARTMENTS: '/departments',
+  STAFF: '/staff',
   DOCTORS: '/doctors',
   PATIENTS: '/patients',
   APPOINTMENTS: '/appointments',
@@ -15,4 +16,18 @@ export const AUTH_ROUTES = {
   REFRESH: '/refresh',
   LOGOUT: '/logout',
   ME: '/me',
+  ACTIVATE: '/activate',
+} as const;
+
+export const DEPARTMENT_ROUTES = {
+  ROOT: '/',
+  BY_ID: '/:id',
+  STATUS: '/:id/status',
+} as const;
+
+export const STAFF_ROUTES = {
+  ROOT: '/',
+  BY_ID: '/:id',
+  STATUS: '/:id/status',
+  RESEND_ACTIVATION: '/:id/resend-activation',
 } as const;

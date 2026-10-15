@@ -8,7 +8,12 @@ export interface IUser {
   password?: string;
   role: Role;
   department?: Types.ObjectId | null;
+  phone?: string;
+  specialization?: string;
   isActive: boolean;
+  isActivated: boolean;
+  activationTokenHash?: string;
+  activationTokenExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,7 +37,6 @@ const userSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: true,
       select: false,
     },
     role: {
@@ -46,13 +50,49 @@ const userSchema = new Schema<IUser>(
       ref: 'Department',
       default: null,
     },
+    phone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    specialization: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     isActive: {
       type: Boolean,
       default: true,
+      index: true,
+    },
+    isActivated: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    activationTokenHash: {
+      type: String,
+      select: false,
+    },
+    activationTokenExpiresAt: {
+      type: Date,
     },
   },
   {
     timestamps: true,
+  },
+);
+
+// Atomic Invariant: At most one active receptionist per department
+userSchema.index(
+  { department: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      role: ROLES.RECEPTIONIST,
+      isActive: true,
+      department: { $type: 'objectId' },
+    },
   },
 );
 

@@ -21,6 +21,29 @@ export const MESSAGES = {
   ME_SUCCESS: 'Current user retrieved successfully',
   USER_INACTIVE: 'Account is deactivated. Please contact an administrator',
 
+  // Department
+  DEPARTMENT_CREATED: 'Department created successfully',
+  DEPARTMENT_UPDATED: 'Department updated successfully',
+  DEPARTMENT_STATUS_UPDATED: 'Department status updated successfully',
+  DEPARTMENT_NOT_FOUND: 'Department not found',
+  DEPARTMENT_EXISTS: 'A department with this name or code already exists',
+  DEPARTMENT_INVALID: 'Selected department is invalid or does not exist',
+  DEPARTMENT_INACTIVE_ASSIGNMENT: 'Cannot assign staff to an inactive department',
+
+  // Staff
+  STAFF_CREATED: 'Staff account created successfully and invitation link generated',
+  STAFF_UPDATED: 'Staff member updated successfully',
+  STAFF_STATUS_UPDATED: 'Staff status updated successfully',
+  STAFF_NOT_FOUND: 'Staff member not found',
+  STAFF_EMAIL_EXISTS: 'A user with this email address already exists',
+  RECEPTIONIST_LIMIT_EXCEEDED:
+    'This department already has an active receptionist. Only one active receptionist is permitted per department.',
+  SUPER_ADMIN_PROTECTED:
+    'The primary Super Admin account is protected and cannot be modified, deactivated, or deleted.',
+  ACCOUNT_ACTIVATED: 'Account activated successfully. You can now log in with your credentials.',
+  ACTIVATION_TOKEN_INVALID: 'Invalid or expired invitation token. Please request a new invitation.',
+  ACTIVATION_LINK_RESENT: 'Activation link has been regenerated successfully',
+
   // Resources
   NOT_FOUND: 'The requested resource was not found',
   ALREADY_EXISTS: 'Resource already exists',
