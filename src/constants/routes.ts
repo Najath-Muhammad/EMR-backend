@@ -50,3 +50,9 @@ export const PATIENT_ROUTES = {
   BY_ID: '/:id',
   CHECK_DUPLICATES: '/check-duplicates',
 } as const;
+
+export const APPOINTMENT_ROUTES = {
+  ROOT: '/',
+  BY_ID: '/:id',
+  CANCEL: '/:id/cancel',
+} as const;
