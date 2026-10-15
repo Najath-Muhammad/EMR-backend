@@ -6,6 +6,10 @@ import { validateBody, validateQuery } from '../middlewares/validate.middleware'
 import {
   createAppointmentSchema,
   cancelAppointmentSchema,
+  updateAppointmentSchema,
+  completeAppointmentSchema,
+  updateConsultationNotesSchema,
+  rescheduleAppointmentSchema,
   appointmentQuerySchema,
 } from '../validators/appointment.validator';
 import { AppointmentRepository } from '../repositories/implementation/AppointmentRepository';
@@ -79,7 +83,81 @@ router.get(
   },
 );
 
-// 4. Cancel appointment (SUPER_ADMIN, RECEPTIONIST) - support both PATCH and POST
+// 4. Update appointment purpose and notes (SUPER_ADMIN, RECEPTIONIST)
+router.patch(
+  APPOINTMENT_ROUTES.BY_ID,
+  authenticate,
+  authorize(ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST),
+  validateBody(updateAppointmentSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await appointmentController.updateAppointment(req, res);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// 5. Mark as arrived (SUPER_ADMIN, RECEPTIONIST)
+router.patch(
+  APPOINTMENT_ROUTES.ARRIVE,
+  authenticate,
+  authorize(ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await appointmentController.markAsArrived(req, res);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// 6. Complete appointment (SUPER_ADMIN, DOCTOR)
+router.patch(
+  APPOINTMENT_ROUTES.COMPLETE,
+  authenticate,
+  authorize(ROLES.SUPER_ADMIN, ROLES.DOCTOR),
+  validateBody(completeAppointmentSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await appointmentController.completeAppointment(req, res);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// 7. Update consultation notes (SUPER_ADMIN, DOCTOR)
+router.patch(
+  APPOINTMENT_ROUTES.CONSULTATION,
+  authenticate,
+  authorize(ROLES.SUPER_ADMIN, ROLES.DOCTOR),
+  validateBody(updateConsultationNotesSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await appointmentController.updateConsultationNotes(req, res);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// 8. Reschedule appointment (SUPER_ADMIN, RECEPTIONIST)
+router.patch(
+  APPOINTMENT_ROUTES.RESCHEDULE,
+  authenticate,
+  authorize(ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST),
+  validateBody(rescheduleAppointmentSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await appointmentController.rescheduleAppointment(req, res);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// 9. Cancel appointment (SUPER_ADMIN, RECEPTIONIST) - support both PATCH and POST
 router.patch(
   APPOINTMENT_ROUTES.CANCEL,
   authenticate,

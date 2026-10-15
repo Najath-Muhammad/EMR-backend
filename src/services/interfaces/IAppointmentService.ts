@@ -1,4 +1,9 @@
-import { CreateAppointmentInput, AppointmentQuery } from '../../validators/appointment.validator';
+import {
+  CreateAppointmentInput,
+  UpdateAppointmentInput,
+  RescheduleAppointmentInput,
+  AppointmentQuery,
+} from '../../validators/appointment.validator';
 import { AppointmentResponseDto } from '../../dtos/appointment.dto';
 
 export interface RequestingUserContext {
@@ -22,6 +27,35 @@ export interface IAppointmentService {
     id: string,
     staffUserId: string,
     reason?: string,
+  ): Promise<AppointmentResponseDto>;
+
+  markAsArrived(
+    id: string,
+    staffUserId: string,
+  ): Promise<AppointmentResponseDto>;
+
+  completeAppointment(
+    id: string,
+    requestingUser: RequestingUserContext,
+    consultationNotes?: string,
+  ): Promise<AppointmentResponseDto>;
+
+  updateAppointment(
+    id: string,
+    requestingUser: RequestingUserContext,
+    input: UpdateAppointmentInput,
+  ): Promise<AppointmentResponseDto>;
+
+  updateConsultationNotes(
+    id: string,
+    requestingUser: RequestingUserContext,
+    notes: string,
+  ): Promise<AppointmentResponseDto>;
+
+  rescheduleAppointment(
+    id: string,
+    requestingUser: RequestingUserContext,
+    input: RescheduleAppointmentInput,
   ): Promise<AppointmentResponseDto>;
 
   getAppointmentById(

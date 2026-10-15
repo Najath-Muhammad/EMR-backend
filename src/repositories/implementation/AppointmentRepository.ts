@@ -21,7 +21,10 @@ export class AppointmentRepository implements IAppointmentRepository {
       .populate('doctor', 'name email specialization department')
       .populate('department', 'name code')
       .populate('createdBy', 'name email')
-      .populate('cancelledBy', 'name email');
+      .populate('arrivedBy', 'name email')
+      .populate('completedBy', 'name email')
+      .populate('cancelledBy', 'name email')
+      .populate('rescheduleHistory.rescheduledBy', 'name email');
   }
 
   async findByDoctorAndDate(
@@ -31,7 +34,7 @@ export class AppointmentRepository implements IAppointmentRepository {
     return AppointmentModel.find({
       doctor: doctorId,
       date,
-      status: { $in: ['SCHEDULED', 'CONFIRMED', 'PENDING'] },
+      status: { $in: ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'PENDING'] },
     }).sort({ startTime: 1 });
   }
 
@@ -42,7 +45,7 @@ export class AppointmentRepository implements IAppointmentRepository {
     return AppointmentModel.find({
       doctor: doctorId,
       date: { $gte: fromDate },
-      status: { $in: ['SCHEDULED', 'CONFIRMED', 'PENDING'] },
+      status: { $in: ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'PENDING'] },
     }).sort({ date: 1, startTime: 1 });
   }
 
@@ -70,7 +73,10 @@ export class AppointmentRepository implements IAppointmentRepository {
         .populate('doctor', 'name email specialization department')
         .populate('department', 'name code')
         .populate('createdBy', 'name email')
-        .populate('cancelledBy', 'name email'),
+        .populate('arrivedBy', 'name email')
+        .populate('completedBy', 'name email')
+        .populate('cancelledBy', 'name email')
+        .populate('rescheduleHistory.rescheduledBy', 'name email'),
       AppointmentModel.countDocuments(query),
     ]);
 
@@ -96,6 +102,9 @@ export class AppointmentRepository implements IAppointmentRepository {
       .populate('doctor', 'name email specialization department')
       .populate('department', 'name code')
       .populate('createdBy', 'name email')
-      .populate('cancelledBy', 'name email');
+      .populate('arrivedBy', 'name email')
+      .populate('completedBy', 'name email')
+      .populate('cancelledBy', 'name email')
+      .populate('rescheduleHistory.rescheduledBy', 'name email');
   }
 }

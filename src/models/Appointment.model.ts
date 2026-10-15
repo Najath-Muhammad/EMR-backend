@@ -3,11 +3,21 @@ import { Schema, model, Document, Types } from 'mongoose';
 export type AppointmentStatus =
   | 'SCHEDULED'
   | 'CONFIRMED'
+  | 'ARRIVED'
   | 'COMPLETED'
   | 'CANCELLED'
   | 'NO_SHOW'
   | 'PENDING'
   | 'RESCHEDULED';
+
+export interface RescheduleHistoryEntry {
+  previousDate: string;
+  previousStartTime: string;
+  previousEndTime: string;
+  rescheduledAt: Date;
+  rescheduledBy?: Types.ObjectId | null;
+  reason?: string;
+}
 
 export interface IAppointment {
   doctor: Types.ObjectId;
@@ -21,9 +31,15 @@ export interface IAppointment {
   purpose: string;
   notes?: string;
   createdBy?: Types.ObjectId | null;
+  arrivedAt?: Date | null;
+  arrivedBy?: Types.ObjectId | null;
+  completedAt?: Date | null;
+  completedBy?: Types.ObjectId | null;
+  consultationNotes?: string;
   cancelledAt?: Date | null;
   cancelledBy?: Types.ObjectId | null;
   cancellationReason?: string;
+  rescheduleHistory?: RescheduleHistoryEntry[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -76,6 +92,7 @@ const appointmentSchema = new Schema<IAppointment>(
       enum: [
         'SCHEDULED',
         'CONFIRMED',
+        'ARRIVED',
         'COMPLETED',
         'CANCELLED',
         'NO_SHOW',
@@ -100,6 +117,29 @@ const appointmentSchema = new Schema<IAppointment>(
       ref: 'User',
       default: null,
     },
+    arrivedAt: {
+      type: Date,
+      default: null,
+    },
+    arrivedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+    completedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    consultationNotes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     cancelledAt: {
       type: Date,
       default: null,
@@ -114,6 +154,16 @@ const appointmentSchema = new Schema<IAppointment>(
       trim: true,
       default: '',
     },
+    rescheduleHistory: [
+      {
+        previousDate: { type: String, required: true },
+        previousStartTime: { type: String, required: true },
+        previousEndTime: { type: String, required: true },
+        rescheduledAt: { type: Date, default: Date.now },
+        rescheduledBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+        reason: { type: String, trim: true, default: '' },
+      },
+    ],
   },
   {
     timestamps: true,
@@ -122,11 +172,12 @@ const appointmentSchema = new Schema<IAppointment>(
 
 // Concurrency & Double-Booking Protection:
 // MongoDB partial unique index ensuring no two active appointments exist for the same doctor, date, and startTime
+// Covers SCHEDULED, CONFIRMED, and ARRIVED (patient checked in & waiting)
 appointmentSchema.index(
   { doctor: 1, date: 1, startTime: 1 },
   {
     unique: true,
-    partialFilterExpression: { status: { $in: ['SCHEDULED', 'CONFIRMED'] } },
+    partialFilterExpression: { status: { $in: ['SCHEDULED', 'CONFIRMED', 'ARRIVED'] } },
     name: 'unique_active_doctor_slot',
   },
 );

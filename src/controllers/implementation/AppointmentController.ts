@@ -4,6 +4,10 @@ import { IAppointmentService } from '../../services/interfaces/IAppointmentServi
 import {
   CreateAppointmentInput,
   CancelAppointmentInput,
+  UpdateAppointmentInput,
+  CompleteAppointmentInput,
+  UpdateConsultationNotesInput,
+  RescheduleAppointmentInput,
   AppointmentQuery,
 } from '../../validators/appointment.validator';
 import { successResponse } from '../../dtos/ApiResponse';
@@ -37,6 +41,76 @@ export class AppointmentController implements IAppointmentController {
       body.reason,
     );
     res.status(HTTP_STATUS.OK).json(successResponse(MESSAGES.APPOINTMENT_CANCELLED, data));
+  }
+
+  async markAsArrived(req: Request, res: Response): Promise<void> {
+    if (!req.user?.userId) {
+      throw new UnauthorizedError(MESSAGES.UNAUTHORIZED);
+    }
+
+    const id = req.params['id'] as string;
+    const data = await this.appointmentService.markAsArrived(id, req.user.userId);
+    res.status(HTTP_STATUS.OK).json(successResponse(MESSAGES.APPOINTMENT_ARRIVED, data));
+  }
+
+  async completeAppointment(req: Request, res: Response): Promise<void> {
+    if (!req.user?.userId) {
+      throw new UnauthorizedError(MESSAGES.UNAUTHORIZED);
+    }
+
+    const id = req.params['id'] as string;
+    const body = req.body as CompleteAppointmentInput;
+    const data = await this.appointmentService.completeAppointment(
+      id,
+      { userId: req.user.userId, role: req.user.role },
+      body.consultationNotes,
+    );
+    res.status(HTTP_STATUS.OK).json(successResponse(MESSAGES.APPOINTMENT_COMPLETED, data));
+  }
+
+  async updateAppointment(req: Request, res: Response): Promise<void> {
+    if (!req.user?.userId) {
+      throw new UnauthorizedError(MESSAGES.UNAUTHORIZED);
+    }
+
+    const id = req.params['id'] as string;
+    const body = req.body as UpdateAppointmentInput;
+    const data = await this.appointmentService.updateAppointment(
+      id,
+      { userId: req.user.userId, role: req.user.role },
+      body,
+    );
+    res.status(HTTP_STATUS.OK).json(successResponse(MESSAGES.APPOINTMENT_UPDATED, data));
+  }
+
+  async updateConsultationNotes(req: Request, res: Response): Promise<void> {
+    if (!req.user?.userId) {
+      throw new UnauthorizedError(MESSAGES.UNAUTHORIZED);
+    }
+
+    const id = req.params['id'] as string;
+    const body = req.body as UpdateConsultationNotesInput;
+    const data = await this.appointmentService.updateConsultationNotes(
+      id,
+      { userId: req.user.userId, role: req.user.role },
+      body.consultationNotes,
+    );
+    res.status(HTTP_STATUS.OK).json(successResponse(MESSAGES.APPOINTMENT_CONSULTATION_SAVED, data));
+  }
+
+  async rescheduleAppointment(req: Request, res: Response): Promise<void> {
+    if (!req.user?.userId) {
+      throw new UnauthorizedError(MESSAGES.UNAUTHORIZED);
+    }
+
+    const id = req.params['id'] as string;
+    const body = req.body as RescheduleAppointmentInput;
+    const data = await this.appointmentService.rescheduleAppointment(
+      id,
+      { userId: req.user.userId, role: req.user.role },
+      body,
+    );
+    res.status(HTTP_STATUS.OK).json(successResponse(MESSAGES.APPOINTMENT_RESCHEDULED, data));
   }
 
   async getAppointmentById(req: Request, res: Response): Promise<void> {

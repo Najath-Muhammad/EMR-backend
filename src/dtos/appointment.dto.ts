@@ -28,6 +28,15 @@ export interface StaffRefDto {
   email: string;
 }
 
+export interface RescheduleHistoryDto {
+  previousDate: string;
+  previousStartTime: string;
+  previousEndTime: string;
+  rescheduledAt: string;
+  rescheduledBy?: StaffRefDto | null;
+  reason?: string;
+}
+
 export interface AppointmentResponseDto {
   id: string;
   patient: PatientRefDto;
@@ -40,9 +49,15 @@ export interface AppointmentResponseDto {
   purpose: string;
   notes: string;
   createdBy: StaffRefDto | null;
+  arrivedAt: string | null;
+  arrivedBy: StaffRefDto | null;
+  completedAt: string | null;
+  completedBy: StaffRefDto | null;
+  consultationNotes: string;
   cancelledAt: string | null;
   cancelledBy: StaffRefDto | null;
   cancellationReason: string;
+  rescheduleHistory: RescheduleHistoryDto[];
   createdAt: string;
   updatedAt: string;
 }
