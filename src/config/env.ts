@@ -7,9 +7,14 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(5000),
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_EXPIRES_IN: z.string().default('7d'),
+  JWT_EXPIRES_IN: z.string().default('15m'),
+  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  SUPER_ADMIN_NAME: z.string().default('Hospital Super Admin'),
+  SUPER_ADMIN_EMAIL: z.string().email().default('admin@hospital.com'),
+  SUPER_ADMIN_PASSWORD: z.string().min(8).default('Admin@12345'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -19,6 +19,7 @@ async function bootstrap(): Promise<void> {
       methods: ['GET', 'POST'],
     },
   });
+  void _io;
 
   httpServer.listen(env.PORT, () => {
     logger.info(`🚀  EMR Backend running on http://localhost:${env.PORT}`);

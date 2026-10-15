@@ -9,3 +9,10 @@ export const ROUTES = {
   APPOINTMENTS: '/appointments',
   SCHEDULES: '/schedules',
 } as const;
+
+export const AUTH_ROUTES = {
+  LOGIN: '/login',
+  REFRESH: '/refresh',
+  LOGOUT: '/logout',
+  ME: '/me',
+} as const;
