@@ -18,11 +18,13 @@ import { MESSAGES } from '../../constants/messages';
 import { ROLES, Role } from '../../constants/roles';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
+import { IAuditLogService } from '../interfaces/IAuditLogService';
 
 export class StaffService implements IStaffService {
   constructor(
     private readonly staffRepo: IStaffRepository,
     private readonly departmentRepo: IDepartmentRepository,
+    private readonly auditLogService?: IAuditLogService,
   ) {}
 
   private getClientBaseUrl(): string {
@@ -74,6 +76,17 @@ export class StaffService implements IStaffService {
     const activationLink = `${this.getClientBaseUrl()}/activate-account?token=${rawToken}`;
 
     logger.info(`Staff account created for ${created.email} (${created.role}). Activation link generated.`);
+
+    void this.auditLogService?.log({
+      action: 'STAFF_CREATE',
+      entityType: 'User',
+      entityId: created._id.toString(),
+      details: {
+        email: created.email,
+        role: created.role,
+        department: department.name,
+      },
+    });
 
     return {
       staff: StaffMapper.toResponseDto(populated ?? created),
@@ -129,6 +142,15 @@ export class StaffService implements IStaffService {
       throw new NotFoundError(MESSAGES.STAFF_NOT_FOUND);
     }
 
+    void this.auditLogService?.log({
+      action: 'STAFF_UPDATE',
+      entityType: 'User',
+      entityId: id,
+      details: {
+        updatedFields: Object.keys(input),
+      },
+    });
+
     return StaffMapper.toResponseDto(updated);
   }
 
@@ -156,6 +178,17 @@ export class StaffService implements IStaffService {
     if (!updated) {
       throw new NotFoundError(MESSAGES.STAFF_NOT_FOUND);
     }
+
+    void this.auditLogService?.log({
+      action: 'STAFF_STATUS_TOGGLE',
+      entityType: 'User',
+      entityId: id,
+      details: {
+        email: staff.email,
+        role: staff.role,
+        isActive,
+      },
+    });
 
     return StaffMapper.toResponseDto(updated);
   }

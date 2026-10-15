@@ -8,6 +8,7 @@ import doctorRouter from './doctor.routes';
 import slotRouter from './slot.routes';
 import patientRouter from './patient.routes';
 import appointmentRouter from './appointment.routes';
+import auditLogRouter from './auditLog.routes';
 
 const router = Router();
 
@@ -34,5 +35,8 @@ router.use(`${ROUTES.BASE}${ROUTES.PATIENTS}`, patientRouter);
 
 // Mount appointment routes under /api/v1/appointments
 router.use(`${ROUTES.BASE}${ROUTES.APPOINTMENTS}`, appointmentRouter);
+
+// Mount audit log routes under /api/v1/audit-logs
+router.use(`${ROUTES.BASE}${ROUTES.AUDIT_LOGS}`, auditLogRouter);
 
 export default router;

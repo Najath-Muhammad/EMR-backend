@@ -10,6 +10,7 @@ export const ROUTES = {
   APPOINTMENTS: '/appointments',
   SCHEDULES: '/schedules',
   SLOTS: '/slots',
+  AUDIT_LOGS: '/audit-logs',
 } as const;
 
 export const AUTH_ROUTES = {
@@ -60,3 +61,9 @@ export const APPOINTMENT_ROUTES = {
   RESCHEDULE: '/:id/reschedule',
   CONSULTATION: '/:id/consultation',
 } as const;
+
+export const AUDIT_LOG_ROUTES = {
+  ROOT: '/',
+  BY_ID: '/:id',
+} as const;
+

@@ -1,9 +1,9 @@
 import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
 import { createApp } from './app';
 import { connectDB } from './config/db';
 import { env } from './config/env';
 import { logger } from './utils/logger';
+import { initSocket } from './socket';
 
 async function bootstrap(): Promise<void> {
   // Connect to MongoDB first
@@ -12,14 +12,8 @@ async function bootstrap(): Promise<void> {
   const app = createApp();
   const httpServer = http.createServer(app);
 
-  // Socket.IO wired — namespaces/events deferred to Phase 6
-  const _io = new SocketIOServer(httpServer, {
-    cors: {
-      origin: env.CORS_ORIGINS.split(',').map((o) => o.trim()),
-      methods: ['GET', 'POST'],
-    },
-  });
-  void _io;
+  // Socket.IO initialized with authenticated handshakes & room isolation
+  initSocket(httpServer);
 
   httpServer.listen(env.PORT, () => {
     logger.info(`🚀  EMR Backend running on http://localhost:${env.PORT}`);

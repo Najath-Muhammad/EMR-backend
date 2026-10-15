@@ -13,11 +13,16 @@ import { ROLES } from '../constants/roles';
 
 const router = Router();
 
+import { AuditLogRepository } from '../repositories/implementation/AuditLogRepository';
+import { AuditLogService } from '../services/implementation/AuditLogService';
+
 // Composition root
 const staffRepo = new StaffRepository();
 const scheduleRepo = new ScheduleRepository();
 const appointmentRepo = new AppointmentRepository();
-const scheduleService = new ScheduleService(scheduleRepo, staffRepo, appointmentRepo);
+const auditLogRepo = new AuditLogRepository();
+const auditLogService = new AuditLogService(auditLogRepo);
+const scheduleService = new ScheduleService(scheduleRepo, staffRepo, appointmentRepo, auditLogService);
 
 const doctorController = new DoctorController(staffRepo, scheduleRepo);
 const scheduleController = new ScheduleController(scheduleService);

@@ -1,7 +1,8 @@
 import crypto from 'crypto';
-import { IAuthService, AuthResult } from '../interfaces/IAuthService';
+import { IAuthService, AuthResult, RequestContext } from '../interfaces/IAuthService';
 import { IUserRepository } from '../../repositories/interfaces/IUserRepository';
 import { IRefreshTokenRepository } from '../../repositories/interfaces/IRefreshTokenRepository';
+import { IAuditLogService } from '../interfaces/IAuditLogService';
 import { LoginInput } from '../../validators/auth.validator';
 import { UserResponseDto } from '../../dtos/auth.dto';
 import { UserMapper } from '../../mappers/user.mapper';
@@ -20,24 +21,61 @@ export class AuthService implements IAuthService {
   constructor(
     private readonly userRepo: IUserRepository,
     private readonly refreshTokenRepo: IRefreshTokenRepository,
+    private readonly auditLogService?: IAuditLogService,
   ) {}
 
-  async login(input: LoginInput): Promise<AuthResult> {
+  async login(input: LoginInput, context?: RequestContext): Promise<AuthResult> {
     const user = await this.userRepo.findByEmail(input.email, true);
     if (!user) {
+      void this.auditLogService?.log({
+        action: 'AUTH_LOGIN_FAILURE',
+        entityType: 'Auth',
+        actor: { email: input.email },
+        details: { reason: 'User not found' },
+        status: 'FAILURE',
+        ipAddress: context?.ip,
+        userAgent: context?.userAgent,
+      });
       throw new UnauthorizedError(MESSAGES.INVALID_CREDENTIALS);
     }
 
     if (!user.isActive) {
+      void this.auditLogService?.log({
+        action: 'AUTH_LOGIN_FAILURE',
+        entityType: 'Auth',
+        actor: { userId: user._id.toString(), email: user.email, name: user.name, role: user.role },
+        details: { reason: 'User inactive' },
+        status: 'FAILURE',
+        ipAddress: context?.ip,
+        userAgent: context?.userAgent,
+      });
       throw new UnauthorizedError(MESSAGES.USER_INACTIVE);
     }
 
     if (!user.password) {
+      void this.auditLogService?.log({
+        action: 'AUTH_LOGIN_FAILURE',
+        entityType: 'Auth',
+        actor: { userId: user._id.toString(), email: user.email, name: user.name, role: user.role },
+        details: { reason: 'Password not set' },
+        status: 'FAILURE',
+        ipAddress: context?.ip,
+        userAgent: context?.userAgent,
+      });
       throw new UnauthorizedError(MESSAGES.INVALID_CREDENTIALS);
     }
 
     const isPasswordValid = await comparePassword(input.password, user.password);
     if (!isPasswordValid) {
+      void this.auditLogService?.log({
+        action: 'AUTH_LOGIN_FAILURE',
+        entityType: 'Auth',
+        actor: { userId: user._id.toString(), email: user.email, name: user.name, role: user.role },
+        details: { reason: 'Invalid credentials' },
+        status: 'FAILURE',
+        ipAddress: context?.ip,
+        userAgent: context?.userAgent,
+      });
       throw new UnauthorizedError(MESSAGES.INVALID_CREDENTIALS);
     }
 
@@ -56,6 +94,17 @@ export class AuthService implements IAuthService {
       expiresAt: calculateRefreshTokenExpiry(),
     });
 
+    void this.auditLogService?.log({
+      action: 'AUTH_LOGIN_SUCCESS',
+      entityType: 'Auth',
+      entityId: user._id.toString(),
+      actor: { userId: user._id.toString(), email: user.email, name: user.name, role: user.role },
+      details: { role: user.role },
+      status: 'SUCCESS',
+      ipAddress: context?.ip,
+      userAgent: context?.userAgent,
+    });
+
     return {
       accessToken,
       rawRefreshToken,
@@ -63,7 +112,7 @@ export class AuthService implements IAuthService {
     };
   }
 
-  async refreshToken(rawRefreshToken?: string): Promise<AuthResult> {
+  async refreshToken(rawRefreshToken?: string, context?: RequestContext): Promise<AuthResult> {
     if (!rawRefreshToken) {
       throw new UnauthorizedError(MESSAGES.REFRESH_TOKEN_REQUIRED);
     }
@@ -85,6 +134,14 @@ export class AuthService implements IAuthService {
     // Reuse detection: If a revoked token is used, someone is attempting to replay a token!
     if (storedToken.isRevoked) {
       await this.refreshTokenRepo.revokeFamily(storedToken.family);
+      void this.auditLogService?.log({
+        action: 'AUTH_TOKEN_REFRESH',
+        entityType: 'Auth',
+        details: { securityWarning: 'Token reuse detected, family revoked' },
+        status: 'FAILURE',
+        ipAddress: context?.ip,
+        userAgent: context?.userAgent,
+      });
       throw new UnauthorizedError(MESSAGES.REFRESH_TOKEN_REUSE);
     }
 
@@ -123,11 +180,18 @@ export class AuthService implements IAuthService {
     };
   }
 
-  async logout(rawRefreshToken?: string): Promise<void> {
+  async logout(rawRefreshToken?: string, context?: RequestContext): Promise<void> {
     if (rawRefreshToken) {
       const tokenHash = hashToken(rawRefreshToken);
       await this.refreshTokenRepo.revokeByHash(tokenHash);
     }
+    void this.auditLogService?.log({
+      action: 'AUTH_LOGOUT',
+      entityType: 'Auth',
+      status: 'SUCCESS',
+      ipAddress: context?.ip,
+      userAgent: context?.userAgent,
+    });
   }
 
   async getCurrentUser(userId: string): Promise<UserResponseDto> {

@@ -97,6 +97,11 @@ export const MESSAGES = {
   APPOINTMENT_DOCTOR_ONLY_CONSULTATION: 'Only the attending physician can edit consultation notes',
   RECEPTIONIST_DEPT_RESTRICTED: 'Receptionists can only schedule appointments within their assigned department',
 
+  // Audit Logs
+  AUDIT_LOGS_FETCHED: 'Audit logs retrieved successfully',
+  AUDIT_LOG_FETCHED: 'Audit log details retrieved successfully',
+  AUDIT_LOG_NOT_FOUND: 'Audit log record not found',
+
   // Server
   SERVER_ERROR: 'An unexpected error occurred. Please try again later.',
 } as const;

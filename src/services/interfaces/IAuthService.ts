@@ -7,9 +7,15 @@ export interface AuthResult {
   user: UserResponseDto;
 }
 
+export interface RequestContext {
+  ip?: string;
+  userAgent?: string;
+}
+
 export interface IAuthService {
-  login(input: LoginInput): Promise<AuthResult>;
-  refreshToken(rawRefreshToken?: string): Promise<AuthResult>;
-  logout(rawRefreshToken?: string): Promise<void>;
+  login(input: LoginInput, context?: RequestContext): Promise<AuthResult>;
+  refreshToken(rawRefreshToken?: string, context?: RequestContext): Promise<AuthResult>;
+  logout(rawRefreshToken?: string, context?: RequestContext): Promise<void>;
   getCurrentUser(userId: string): Promise<UserResponseDto>;
 }
+

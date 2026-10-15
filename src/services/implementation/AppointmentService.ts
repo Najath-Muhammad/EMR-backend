@@ -28,6 +28,8 @@ import {
 import { MESSAGES } from '../../constants/messages';
 import { ROLES } from '../../constants/roles';
 import { env } from '../../config/env';
+import { IRealtimeService } from '../interfaces/IRealtimeService';
+import { IAuditLogService } from '../interfaces/IAuditLogService';
 
 export class AppointmentService implements IAppointmentService {
   constructor(
@@ -36,6 +38,8 @@ export class AppointmentService implements IAppointmentService {
     private readonly staffRepo: IStaffRepository,
     private readonly departmentRepo: IDepartmentRepository,
     private readonly scheduleRepo: IScheduleRepository,
+    private readonly realtimeService?: IRealtimeService,
+    private readonly auditLogService?: IAuditLogService,
   ) {}
 
   async bookAppointment(
@@ -180,7 +184,32 @@ export class AppointmentService implements IAppointmentService {
         createdBy: new Types.ObjectId(creatorUserId),
       });
 
-      return AppointmentMapper.toResponseDto(appointment);
+      const dto = AppointmentMapper.toResponseDto(appointment);
+      this.realtimeService?.emitAppointmentCreated(dto);
+      void this.auditLogService?.log({
+        action: 'APPOINTMENT_CREATE',
+        entityType: 'Appointment',
+        entityId: dto.id,
+        actor: {
+          userId: creator._id.toString(),
+          email: creator.email,
+          name: creator.name,
+          role: creator.role,
+        },
+        details: {
+          patientId: dto.patient?.id || input.patientId,
+          patientName: dto.patient?.fullName,
+          doctorId: dto.doctor?.id || input.doctorId,
+          doctorName: dto.doctor?.name,
+          departmentId: dto.department?.id || effectiveDeptId,
+          date: dto.date,
+          startTime: dto.startTime,
+          endTime: dto.endTime,
+          status: dto.status,
+        },
+      });
+
+      return dto;
     } catch (err: unknown) {
       if (
         err &&
@@ -245,7 +274,25 @@ export class AppointmentService implements IAppointmentService {
       arrivedBy: new Types.ObjectId(staffUserId),
     });
 
-    return AppointmentMapper.toResponseDto(updated!);
+    const dto = AppointmentMapper.toResponseDto(updated!);
+    this.realtimeService?.emitAppointmentUpdated(dto, 'STATUS_CHANGED');
+    void this.auditLogService?.log({
+      action: 'APPOINTMENT_ARRIVED',
+      entityType: 'Appointment',
+      entityId: dto.id,
+      actor: {
+        userId: staff._id.toString(),
+        email: staff.email,
+        name: staff.name,
+        role: staff.role,
+      },
+      details: {
+        previousStatus: appointment.status,
+        newStatus: 'ARRIVED',
+      },
+    });
+
+    return dto;
   }
 
   async completeAppointment(
@@ -291,7 +338,24 @@ export class AppointmentService implements IAppointmentService {
     }
 
     const updated = await this.appointmentRepo.update(id, updatePayload);
-    return AppointmentMapper.toResponseDto(updated!);
+    const dto = AppointmentMapper.toResponseDto(updated!);
+    this.realtimeService?.emitAppointmentUpdated(dto, 'STATUS_CHANGED');
+    void this.auditLogService?.log({
+      action: 'APPOINTMENT_COMPLETED',
+      entityType: 'Appointment',
+      entityId: dto.id,
+      actor: {
+        userId: requestingUser.userId,
+        role: requestingUser.role,
+      },
+      details: {
+        previousStatus: appointment.status,
+        newStatus: 'COMPLETED',
+        hasConsultationNotes: Boolean(consultationNotes),
+      },
+    });
+
+    return dto;
   }
 
   async updateAppointment(
@@ -339,7 +403,22 @@ export class AppointmentService implements IAppointmentService {
     }
 
     const updated = await this.appointmentRepo.update(id, updatePayload);
-    return AppointmentMapper.toResponseDto(updated!);
+    const dto = AppointmentMapper.toResponseDto(updated!);
+    this.realtimeService?.emitAppointmentUpdated(dto, 'UPDATED');
+    void this.auditLogService?.log({
+      action: 'APPOINTMENT_UPDATE',
+      entityType: 'Appointment',
+      entityId: dto.id,
+      actor: {
+        userId: requestingUser.userId,
+        role: requestingUser.role,
+      },
+      details: {
+        updatedFields: Object.keys(updatePayload),
+      },
+    });
+
+    return dto;
   }
 
   async updateConsultationNotes(
@@ -373,7 +452,22 @@ export class AppointmentService implements IAppointmentService {
       consultationNotes: notes.trim(),
     });
 
-    return AppointmentMapper.toResponseDto(updated!);
+    const dto = AppointmentMapper.toResponseDto(updated!);
+    this.realtimeService?.emitAppointmentUpdated(dto, 'UPDATED');
+    void this.auditLogService?.log({
+      action: 'APPOINTMENT_CONSULTATION_UPDATE',
+      entityType: 'Appointment',
+      entityId: dto.id,
+      actor: {
+        userId: requestingUser.userId,
+        role: requestingUser.role,
+      },
+      details: {
+        notesUpdated: true,
+      },
+    });
+
+    return dto;
   }
 
   async rescheduleAppointment(
@@ -501,7 +595,28 @@ export class AppointmentService implements IAppointmentService {
         rescheduleHistory: newHistory,
       });
 
-      return AppointmentMapper.toResponseDto(updated!);
+      const dto = AppointmentMapper.toResponseDto(updated!);
+      this.realtimeService?.emitAppointmentUpdated(dto, 'RESCHEDULED');
+      void this.auditLogService?.log({
+        action: 'APPOINTMENT_RESCHEDULED',
+        entityType: 'Appointment',
+        entityId: dto.id,
+        actor: {
+          userId: requestingUser.userId,
+          role: requestingUser.role,
+        },
+        details: {
+          previousDate: appointment.date,
+          newDate: input.date,
+          previousStartTime: appointment.startTime,
+          newStartTime: input.startTime,
+          previousEndTime: appointment.endTime,
+          newEndTime: input.endTime,
+          reason: input.reason?.trim() || '',
+        },
+      });
+
+      return dto;
     } catch (err: unknown) {
       if (
         err &&
@@ -559,7 +674,26 @@ export class AppointmentService implements IAppointmentService {
       cancellationReason: reason?.trim() || 'Cancelled by staff',
     });
 
-    return AppointmentMapper.toResponseDto(updated!);
+    const dto = AppointmentMapper.toResponseDto(updated!);
+    this.realtimeService?.emitAppointmentCancelled(dto);
+    void this.auditLogService?.log({
+      action: 'APPOINTMENT_CANCEL',
+      entityType: 'Appointment',
+      entityId: dto.id,
+      actor: {
+        userId: staff ? staff._id.toString() : staffUserId,
+        email: staff?.email,
+        name: staff?.name,
+        role: staff?.role,
+      },
+      details: {
+        previousStatus: appointment.status,
+        newStatus: 'CANCELLED',
+        cancellationReason: reason?.trim() || 'Cancelled by staff',
+      },
+    });
+
+    return dto;
   }
 
   async getAppointmentById(

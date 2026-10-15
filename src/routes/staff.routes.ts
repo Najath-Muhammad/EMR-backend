@@ -13,12 +13,17 @@ import { paginationSchema } from '../validators/pagination.validator';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
 import { ROLES } from '../constants/roles';
 
+import { AuditLogRepository } from '../repositories/implementation/AuditLogRepository';
+import { AuditLogService } from '../services/implementation/AuditLogService';
+
 const router = Router();
 
 // Composition root for staff module
 const staffRepo = new StaffRepository();
 const departmentRepo = new DepartmentRepository();
-const staffService = new StaffService(staffRepo, departmentRepo);
+const auditLogRepo = new AuditLogRepository();
+const auditLogService = new AuditLogService(auditLogRepo);
+const staffService = new StaffService(staffRepo, departmentRepo, auditLogService);
 const staffController = new StaffController(staffService);
 
 // Super Admin exclusive staff management routes

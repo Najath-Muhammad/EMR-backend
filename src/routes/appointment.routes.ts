@@ -19,6 +19,9 @@ import { DepartmentRepository } from '../repositories/implementation/DepartmentR
 import { ScheduleRepository } from '../repositories/implementation/ScheduleRepository';
 import { AppointmentService } from '../services/implementation/AppointmentService';
 import { AppointmentController } from '../controllers/implementation/AppointmentController';
+import { realtimeService } from '../services/implementation/RealtimeService';
+import { AuditLogRepository } from '../repositories/implementation/AuditLogRepository';
+import { AuditLogService } from '../services/implementation/AuditLogService';
 
 const router = Router();
 
@@ -28,6 +31,8 @@ const patientRepo = new PatientRepository();
 const staffRepo = new StaffRepository();
 const departmentRepo = new DepartmentRepository();
 const scheduleRepo = new ScheduleRepository();
+const auditLogRepo = new AuditLogRepository();
+const auditLogService = new AuditLogService(auditLogRepo);
 
 const appointmentService = new AppointmentService(
   appointmentRepo,
@@ -35,6 +40,8 @@ const appointmentService = new AppointmentService(
   staffRepo,
   departmentRepo,
   scheduleRepo,
+  realtimeService,
+  auditLogService,
 );
 
 const appointmentController = new AppointmentController(appointmentService);

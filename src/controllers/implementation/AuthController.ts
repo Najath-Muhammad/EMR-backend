@@ -15,7 +15,8 @@ export class AuthController implements IAuthController {
   constructor(private readonly authService: IAuthService) {}
 
   async login(req: Request, res: Response): Promise<void> {
-    const result = await this.authService.login(req.body);
+    const context = { ip: req.ip, userAgent: req.headers['user-agent'] };
+    const result = await this.authService.login(req.body, context);
 
     res.cookie(COOKIE_NAMES.REFRESH_TOKEN, result.rawRefreshToken, REFRESH_COOKIE_OPTIONS);
 
@@ -29,7 +30,8 @@ export class AuthController implements IAuthController {
 
   async refresh(req: Request, res: Response): Promise<void> {
     const rawRefreshToken = req.cookies?.[COOKIE_NAMES.REFRESH_TOKEN] as string | undefined;
-    const result = await this.authService.refreshToken(rawRefreshToken);
+    const context = { ip: req.ip, userAgent: req.headers['user-agent'] };
+    const result = await this.authService.refreshToken(rawRefreshToken, context);
 
     res.cookie(COOKIE_NAMES.REFRESH_TOKEN, result.rawRefreshToken, REFRESH_COOKIE_OPTIONS);
 
@@ -43,7 +45,8 @@ export class AuthController implements IAuthController {
 
   async logout(req: Request, res: Response): Promise<void> {
     const rawRefreshToken = req.cookies?.[COOKIE_NAMES.REFRESH_TOKEN] as string | undefined;
-    await this.authService.logout(rawRefreshToken);
+    const context = { ip: req.ip, userAgent: req.headers['user-agent'] };
+    await this.authService.logout(rawRefreshToken, context);
 
     res.clearCookie(COOKIE_NAMES.REFRESH_TOKEN, CLEAR_REFRESH_COOKIE_OPTIONS);
 

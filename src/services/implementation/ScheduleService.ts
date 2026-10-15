@@ -8,12 +8,14 @@ import { ScheduleMapper } from '../../mappers/schedule.mapper';
 import { NotFoundError, BadRequestError, ConflictError } from '../../errors/AppError';
 import { MESSAGES } from '../../constants/messages';
 import { ROLES } from '../../constants/roles';
+import { IAuditLogService } from '../interfaces/IAuditLogService';
 
 export class ScheduleService implements IScheduleService {
   constructor(
     private readonly scheduleRepo: IScheduleRepository,
     private readonly staffRepo: IStaffRepository,
     private readonly appointmentRepo: IAppointmentRepository,
+    private readonly auditLogService?: IAuditLogService,
   ) {}
 
   async getDoctorSchedule(doctorId: string): Promise<ScheduleResponseDto> {
@@ -128,6 +130,17 @@ export class ScheduleService implements IScheduleService {
       slotDuration: input.slotDuration,
       workingDays: input.workingDays,
       isActive: input.isActive,
+    });
+
+    void this.auditLogService?.log({
+      action: 'SCHEDULE_UPDATE',
+      entityType: 'Schedule',
+      entityId: saved._id ? saved._id.toString() : undefined,
+      details: {
+        doctorId,
+        slotDuration: input.slotDuration,
+        isActive: input.isActive,
+      },
     });
 
     return ScheduleMapper.toResponseDto(saved);

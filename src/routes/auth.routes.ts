@@ -15,12 +15,17 @@ import { activateAccountSchema } from '../validators/staff.validator';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
 import { successResponse } from '../dtos/ApiResponse';
 
+import { AuditLogRepository } from '../repositories/implementation/AuditLogRepository';
+import { AuditLogService } from '../services/implementation/AuditLogService';
+
 const router = Router();
 
 // Composition root for auth & staff activation
 const userRepository = new UserRepository();
 const refreshTokenRepository = new RefreshTokenRepository();
-const authService = new AuthService(userRepository, refreshTokenRepository);
+const auditLogRepo = new AuditLogRepository();
+const auditLogService = new AuditLogService(auditLogRepo);
+const authService = new AuthService(userRepository, refreshTokenRepository, auditLogService);
 const authController = new AuthController(authService);
 
 const staffRepository = new StaffRepository();
