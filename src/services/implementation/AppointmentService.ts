@@ -525,6 +525,25 @@ export class AppointmentService implements IAppointmentService {
       throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
     }
 
+    const staff = await this.staffRepo.findById(staffUserId);
+    if (staff && staff.role === ROLES.RECEPTIONIST) {
+      const staffDeptId = staff.department
+        ? typeof staff.department === 'object' && '_id' in (staff.department as object)
+          ? (staff.department as { _id: { toString(): string } })._id.toString()
+          : staff.department.toString()
+        : null;
+
+      const appDeptId = appointment.department
+        ? typeof appointment.department === 'object' && '_id' in (appointment.department as object)
+          ? (appointment.department as { _id: { toString(): string } })._id.toString()
+          : appointment.department.toString()
+        : null;
+
+      if (staffDeptId && appDeptId && staffDeptId !== appDeptId) {
+        throw new ForbiddenError(MESSAGES.RECEPTIONIST_DEPT_RESTRICTED);
+      }
+    }
+
     if (appointment.status === 'CANCELLED') {
       throw new BadRequestError(MESSAGES.APPOINTMENT_ALREADY_CANCELLED);
     }
@@ -561,6 +580,23 @@ export class AppointmentService implements IAppointmentService {
       if (doctorIdStr !== requestingUser.userId) {
         throw new ForbiddenError(MESSAGES.FORBIDDEN);
       }
+    } else if (requestingUser.role === ROLES.RECEPTIONIST) {
+      const staff = await this.staffRepo.findById(requestingUser.userId);
+      const staffDeptId = staff?.department
+        ? typeof staff.department === 'object' && '_id' in (staff.department as object)
+          ? (staff.department as { _id: { toString(): string } })._id.toString()
+          : staff.department.toString()
+        : null;
+
+      const appDeptId = appointment.department
+        ? typeof appointment.department === 'object' && '_id' in (appointment.department as object)
+          ? (appointment.department as { _id: { toString(): string } })._id.toString()
+          : appointment.department.toString()
+        : null;
+
+      if (staffDeptId && appDeptId && staffDeptId !== appDeptId) {
+        throw new ForbiddenError(MESSAGES.RECEPTIONIST_DEPT_RESTRICTED);
+      }
     }
 
     return AppointmentMapper.toResponseDto(appointment);
@@ -572,19 +608,33 @@ export class AppointmentService implements IAppointmentService {
   ): Promise<PaginatedAppointmentResponseDto> {
     const filter: AppointmentFilter = {};
 
-    // Role-based restrictions: DOCTOR only sees their own appointments
+    // Role-based restrictions:
     if (requestingUser.role === ROLES.DOCTOR) {
+      // DOCTOR only sees their own appointments
       filter.doctor = requestingUser.userId;
-    } else if (query.doctorId) {
-      filter.doctor = query.doctorId;
-    }
+    } else if (requestingUser.role === ROLES.RECEPTIONIST) {
+      // RECEPTIONIST only sees appointments belonging to their assigned department
+      const staff = await this.staffRepo.findById(requestingUser.userId);
+      const staffDeptId = staff?.department
+        ? typeof staff.department === 'object' && '_id' in (staff.department as object)
+          ? (staff.department as { _id: { toString(): string } })._id.toString()
+          : staff.department.toString()
+        : null;
 
-    if (query.patientId) {
-      filter.patient = query.patientId;
-    }
-
-    if (query.departmentId) {
-      filter.department = query.departmentId;
+      if (staffDeptId) {
+        filter.department = staffDeptId;
+      }
+      if (query.doctorId) {
+        filter.doctor = query.doctorId;
+      }
+    } else {
+      // SUPER_ADMIN can query any doctor or department optionally
+      if (query.doctorId) {
+        filter.doctor = query.doctorId;
+      }
+      if (query.departmentId) {
+        filter.department = query.departmentId;
+      }
     }
 
     if (query.status) {
