@@ -9,6 +9,7 @@ export const ROUTES = {
   PATIENTS: '/patients',
   APPOINTMENTS: '/appointments',
   SCHEDULES: '/schedules',
+  SLOTS: '/slots',
 } as const;
 
 export const AUTH_ROUTES = {
@@ -30,4 +31,16 @@ export const STAFF_ROUTES = {
   BY_ID: '/:id',
   STATUS: '/:id/status',
   RESEND_ACTIVATION: '/:id/resend-activation',
+} as const;
+
+export const DOCTOR_ROUTES = {
+  ROOT: '/',
+  BY_ID: '/:id',
+  SCHEDULE: '/:id/schedule',
+  SCHEDULE_STATUS: '/:id/schedule/status',
+} as const;
+
+export const SLOT_ROUTES = {
+  ROOT: '/',
+  PREVIEW: '/preview',
 } as const;

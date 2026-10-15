@@ -44,6 +44,19 @@ export const MESSAGES = {
   ACTIVATION_TOKEN_INVALID: 'Invalid or expired invitation token. Please request a new invitation.',
   ACTIVATION_LINK_RESENT: 'Activation link has been regenerated successfully',
 
+  // Schedule & Slots
+  SCHEDULE_SAVED: 'Doctor schedule saved successfully',
+  SCHEDULE_FETCHED: 'Doctor schedule fetched successfully',
+  SCHEDULE_NOT_FOUND: 'Doctor schedule not found',
+  SCHEDULE_STATUS_UPDATED: 'Doctor schedule status updated successfully',
+  SCHEDULE_DOCTOR_NOT_FOUND: 'Doctor not found or user is not a physician',
+  SCHEDULE_DOCTOR_INACTIVE: 'Cannot configure schedule for an inactive doctor',
+  SCHEDULE_CONFLICT_DETECTED:
+    'Schedule modification conflicts with existing booked appointments. Please resolve conflicts before updating.',
+  SLOTS_FETCHED: 'Appointment slots fetched successfully',
+  SLOTS_PREVIEW_GENERATED: 'Slot preview generated successfully',
+  DOCTOR_NOT_SCHEDULED: 'Doctor has no active schedule for the selected day',
+
   // Resources
   NOT_FOUND: 'The requested resource was not found',
   ALREADY_EXISTS: 'Resource already exists',

@@ -4,6 +4,8 @@ import healthRouter from './health.routes';
 import authRouter from './auth.routes';
 import departmentRouter from './department.routes';
 import staffRouter from './staff.routes';
+import doctorRouter from './doctor.routes';
+import slotRouter from './slot.routes';
 
 const router = Router();
 
@@ -18,5 +20,11 @@ router.use(`${ROUTES.BASE}${ROUTES.DEPARTMENTS}`, departmentRouter);
 
 // Mount staff routes under /api/v1/staff
 router.use(`${ROUTES.BASE}${ROUTES.STAFF}`, staffRouter);
+
+// Mount doctor routes under /api/v1/doctors
+router.use(`${ROUTES.BASE}${ROUTES.DOCTORS}`, doctorRouter);
+
+// Mount slot routes under /api/v1/slots
+router.use(`${ROUTES.BASE}${ROUTES.SLOTS}`, slotRouter);
 
 export default router;
