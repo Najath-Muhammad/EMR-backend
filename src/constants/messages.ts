@@ -70,6 +70,24 @@ export const MESSAGES = {
   NOT_FOUND: 'The requested resource was not found',
   ALREADY_EXISTS: 'Resource already exists',
 
+  // Appointments
+  APPOINTMENT_CREATED: 'Appointment booked successfully',
+  APPOINTMENT_FETCHED: 'Appointment details retrieved successfully',
+  APPOINTMENTS_FETCHED: 'Appointments retrieved successfully',
+  APPOINTMENT_CANCELLED: 'Appointment cancelled successfully',
+  APPOINTMENT_NOT_FOUND: 'Appointment not found',
+  APPOINTMENT_SLOT_ALREADY_BOOKED: 'This time slot has just been booked by another user. Please select another slot.',
+  APPOINTMENT_DOCTOR_MISMATCH_DEPT: 'The selected doctor does not belong to the selected department',
+  APPOINTMENT_PAST_DATE: 'Cannot book appointments for past dates or past time slots',
+  APPOINTMENT_NO_SCHEDULE: 'Doctor does not have an active schedule for appointments',
+  APPOINTMENT_DAY_OFF: 'Doctor is not scheduled to work on this day',
+  APPOINTMENT_OUTSIDE_SESSION: 'Selected time slot does not fit within any of the doctor\'s working sessions',
+  APPOINTMENT_BREAK_CONFLICT: 'Selected time slot falls within a scheduled break period',
+  APPOINTMENT_INVALID_DURATION: 'Appointment duration does not match the doctor\'s configured schedule slot duration',
+  APPOINTMENT_ALREADY_CANCELLED: 'This appointment has already been cancelled',
+  APPOINTMENT_ALREADY_COMPLETED: 'Cannot cancel an appointment that has already been completed',
+  APPOINTMENT_CANCEL_FORBIDDEN: 'You do not have permission to cancel this appointment',
+
   // Server
   SERVER_ERROR: 'An unexpected error occurred. Please try again later.',
 } as const;

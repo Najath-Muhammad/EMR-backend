@@ -1,10 +1,12 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
 export type AppointmentStatus =
-  | 'PENDING'
+  | 'SCHEDULED'
   | 'CONFIRMED'
   | 'COMPLETED'
   | 'CANCELLED'
+  | 'NO_SHOW'
+  | 'PENDING'
   | 'RESCHEDULED';
 
 export interface IAppointment {
@@ -16,7 +18,12 @@ export interface IAppointment {
   startTime: string;  // HH:mm
   endTime: string;    // HH:mm
   status: AppointmentStatus;
+  purpose: string;
   notes?: string;
+  createdBy?: Types.ObjectId | null;
+  cancelledAt?: Date | null;
+  cancelledBy?: Types.ObjectId | null;
+  cancellationReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +42,7 @@ const appointmentSchema = new Schema<IAppointment>(
       type: Schema.Types.ObjectId,
       ref: 'Patient',
       default: null,
+      index: true,
     },
     patientName: {
       type: String,
@@ -65,11 +73,43 @@ const appointmentSchema = new Schema<IAppointment>(
     },
     status: {
       type: String,
-      enum: ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'RESCHEDULED'],
+      enum: [
+        'SCHEDULED',
+        'CONFIRMED',
+        'COMPLETED',
+        'CANCELLED',
+        'NO_SHOW',
+        'PENDING',
+        'RESCHEDULED',
+      ],
       default: 'CONFIRMED',
       index: true,
     },
+    purpose: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     notes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    cancelledBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    cancellationReason: {
       type: String,
       trim: true,
       default: '',
@@ -80,6 +120,18 @@ const appointmentSchema = new Schema<IAppointment>(
   },
 );
 
-appointmentSchema.index({ doctor: 1, date: 1, startTime: 1 });
+// Concurrency & Double-Booking Protection:
+// MongoDB partial unique index ensuring no two active appointments exist for the same doctor, date, and startTime
+appointmentSchema.index(
+  { doctor: 1, date: 1, startTime: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: ['SCHEDULED', 'CONFIRMED'] } },
+    name: 'unique_active_doctor_slot',
+  },
+);
+
+appointmentSchema.index({ patient: 1, date: 1 });
+appointmentSchema.index({ department: 1, date: 1 });
 
 export const AppointmentModel = model<IAppointment>('Appointment', appointmentSchema);
