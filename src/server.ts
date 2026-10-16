@@ -14,6 +14,15 @@ async function bootstrap(): Promise<void> {
 
   initSocket(httpServer);
 
+  httpServer.on('error', (err: NodeJS.ErrnoException): void => {
+    if (err.code === 'EADDRINUSE') {
+      logger.error(`Port ${env.PORT} is already in use.`);
+    } else {
+      logger.error('HTTP server encountered an error', { error: err.message });
+    }
+    process.exit(1);
+  });
+
   httpServer.listen(env.PORT, () => {
     logger.info(`🚀  EMR Backend running on http://localhost:${env.PORT}`);
     logger.info(`   Environment : ${env.NODE_ENV}`);

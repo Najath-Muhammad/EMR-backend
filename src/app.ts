@@ -1,4 +1,4 @@
-import express, { Application } from 'express';
+import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -20,7 +20,8 @@ export function createApp(): Application {
       origin: env.CORS_ORIGINS.split(',').map((o) => o.trim()),
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Accept', 'Origin'],
+      exposedHeaders: ['Set-Cookie'],
     }),
   );
 
@@ -33,11 +34,11 @@ export function createApp(): Application {
     app.use(morgan('dev'));
   }
 
-  app.get('/', (_req, res) => {
+  app.get('/', (_req: Request, res: Response): void => {
     res.status(200).json({ status: 'ok', service: 'emr-backend' });
   });
 
-  app.get('/health', (_req, res) => {
+  app.get('/health', (_req: Request, res: Response): void => {
     res.status(200).json({ status: 'ok', service: 'emr-backend' });
   });
 
