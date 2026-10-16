@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import http from 'http';
 import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
 import { createApp } from '../src/app';
 import { initSocket } from '../src/socket';
@@ -22,6 +23,7 @@ import { IRealtimeService } from '../src/services/interfaces/IRealtimeService';
 let server: http.Server;
 let port: number;
 let serverUrl: string;
+let mongoServer: MongoMemoryServer;
 
 let adminToken: string;
 let doctor1Token: string;
@@ -34,10 +36,9 @@ let dept1Id: string;
 let dept2Id: string;
 
 beforeAll(async () => {
-  const uri = process.env['MONGODB_URI'] || 'mongodb://localhost:27017/emr_test';
-  if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(uri);
-  }
+  mongoServer = await MongoMemoryServer.create();
+  const uri = mongoServer.getUri();
+  await mongoose.connect(uri);
 
   const app = createApp();
   server = http.createServer(app);
@@ -120,6 +121,9 @@ afterAll(async () => {
   await DepartmentModel.deleteMany({ code: /RT/ });
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await mongoose.disconnect();
+  if (mongoServer) {
+    await mongoServer.stop();
+  }
 });
 
 function createClient(token?: string): ClientSocket {

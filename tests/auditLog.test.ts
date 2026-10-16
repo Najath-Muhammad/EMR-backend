@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 import type { Application } from 'express';
 import { createApp } from '../src/app';
 import { UserModel } from '../src/models/User.model';
@@ -10,24 +11,27 @@ import { generateAccessToken } from '../src/utils/token.util';
 import { hashPassword } from '../src/utils/password.util';
 
 let app: Application;
+let mongoServer: MongoMemoryServer;
 let adminToken: string;
 let receptionistToken: string;
 let doctorToken: string;
 let adminUserId: string;
 
 beforeAll(async () => {
-  const uri = process.env['MONGODB_URI'] || 'mongodb://localhost:27017/emr_test';
-  if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(uri);
-  }
+  mongoServer = await MongoMemoryServer.create();
+  const uri = mongoServer.getUri();
+  await mongoose.connect(uri);
   app = createApp();
-});
+}, 60000);
 
 afterAll(async () => {
   await UserModel.deleteMany({ email: /test-audit/ });
   await AuditLogModel.deleteMany({});
   await mongoose.disconnect();
-});
+  if (mongoServer) {
+    await mongoServer.stop();
+  }
+}, 30000);
 
 beforeEach(async () => {
   await AuditLogModel.deleteMany({});
