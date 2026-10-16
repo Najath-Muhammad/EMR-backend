@@ -5,6 +5,7 @@ import { DepartmentModel } from '../models/Department.model';
 import { ScheduleModel, IWorkingDay } from '../models/Schedule.model';
 import { PatientModel } from '../models/Patient.model';
 import { AppointmentModel } from '../models/Appointment.model';
+import { CounterModel } from '../models/Counter.model';
 import { ROLES } from '../constants/roles';
 import { hashPassword } from '../utils/password.util';
 import { normalizePhoneNumber } from '../utils/phone.util';
@@ -427,6 +428,16 @@ async function seedHospital(): Promise<void> {
       }
       patientMap.set(pc.patientId, patient._id);
     }
+
+    // Synchronize atomic Patient ID sequence counter so subsequent UI registrations start after highest seeded ID
+    const currentYear = new Date().getFullYear();
+    const highestSeededSeq = patientConfigs.length;
+    await CounterModel.findByIdAndUpdate(
+      `patient_id_${currentYear}`,
+      { $max: { seq: highestSeededSeq } },
+      { upsert: true, new: true },
+    );
+    logger.info(`Patient ID counter synchronized to at least sequence: ${highestSeededSeq}`);
 
     // -------------------------------------------------------------
     // 6. SAMPLE APPOINTMENTS (DIVERSE STATUSES & DATES)
