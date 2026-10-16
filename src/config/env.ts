@@ -16,6 +16,7 @@ const envSchema = z.object({
   SUPER_ADMIN_EMAIL: z.string().email().default('admin@hospital.com'),
   SUPER_ADMIN_PASSWORD: z.string().min(8).default('Admin@12345'),
   HOSPITAL_TIMEZONE: z.string().default('UTC'),
+  COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -11,6 +11,8 @@ import { errorHandler } from './middlewares/errorHandler';
 export function createApp(): Application {
   const app = express();
 
+  app.set('trust proxy', 1);
+
   app.use(helmet());
 
   app.use(
@@ -30,6 +32,14 @@ export function createApp(): Application {
   if (env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
   }
+
+  app.get('/', (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'emr-backend' });
+  });
+
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'emr-backend' });
+  });
 
   app.use(router);
 
