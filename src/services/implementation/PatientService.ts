@@ -99,38 +99,49 @@ export class PatientService implements IPatientService {
       throw new BadRequestError('Invalid phone number format');
     }
 
-    // Generate unique Patient ID (e.g. PAT-2026-00001) using atomic sequence counter
+    // Generate unique Patient ID (e.g. PAT-2026-00001) using atomic sequence counter with auto-increment retry
     const currentYear = new Date().getFullYear();
-    const seq = await getNextSequence(`patient_id_${currentYear}`);
-    const patientId = `PAT-${currentYear}-${String(seq).padStart(5, '0')}`;
+    let attempts = 0;
+    const maxAttempts = 10;
 
-    try {
-      const created = await this.patientRepo.create({
-        patientId,
-        fullName: data.fullName.trim(),
-        phone: data.phone.trim(),
-        normalizedPhone,
-        dateOfBirth: data.dateOfBirth,
-        gender: data.gender,
-        email: data.email ? data.email.trim().toLowerCase() : undefined,
-        address: data.address ? data.address.trim() : undefined,
-        emergencyContact: data.emergencyContact,
-        bloodGroup: data.bloodGroup || 'UNKNOWN',
-        registrationDepartment: deptObjectId,
-        registeredBy: new Types.ObjectId(staffUserId),
-        isActive: true,
-      });
+    while (attempts < maxAttempts) {
+      attempts++;
+      const seq = await getNextSequence(`patient_id_${currentYear}`);
+      const patientId = `PAT-${currentYear}-${String(seq).padStart(5, '0')}`;
 
-      // Refetch with populated department and staff
-      const populated = await this.patientRepo.findById(created._id.toString());
-      return PatientMapper.toResponseDto(populated ?? created);
-    } catch (error: unknown) {
-      const err = error as { code?: number; keyPattern?: Record<string, number> };
-      if (err.code === 11000 && err.keyPattern && err.keyPattern['patientId']) {
-        throw new ConflictError(MESSAGES.PATIENT_ID_EXISTS);
+      try {
+        const created = await this.patientRepo.create({
+          patientId,
+          fullName: data.fullName.trim(),
+          phone: data.phone.trim(),
+          normalizedPhone,
+          dateOfBirth: data.dateOfBirth,
+          gender: data.gender,
+          email: data.email ? data.email.trim().toLowerCase() : undefined,
+          address: data.address ? data.address.trim() : undefined,
+          emergencyContact: data.emergencyContact,
+          bloodGroup: data.bloodGroup || 'UNKNOWN',
+          registrationDepartment: deptObjectId,
+          registeredBy: new Types.ObjectId(staffUserId),
+          isActive: true,
+        });
+
+        // Refetch with populated department and staff
+        const populated = await this.patientRepo.findById(created._id.toString());
+        return PatientMapper.toResponseDto(populated ?? created);
+      } catch (error: unknown) {
+        const err = error as { code?: number; keyPattern?: Record<string, number> };
+        if (err.code === 11000 && err.keyPattern && err.keyPattern['patientId']) {
+          if (attempts < maxAttempts) {
+            continue;
+          }
+          throw new ConflictError(MESSAGES.PATIENT_ID_EXISTS);
+        }
+        throw error;
       }
-      throw error;
     }
+
+    throw new ConflictError(MESSAGES.PATIENT_ID_EXISTS);
   }
 
   async getPatients(query: SearchPatientsQuery): Promise<PaginatedPatientsResult> {

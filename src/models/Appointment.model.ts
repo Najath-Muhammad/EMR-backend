@@ -1,4 +1,7 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import './User.model';
+import './Patient.model';
+import './Department.model';
 
 export type AppointmentStatus =
   | 'SCHEDULED'
