@@ -15,9 +15,25 @@ export interface AuthenticatedSocketUser {
 }
 
 export function initSocket(httpServer: http.Server): SocketIOServer {
+  const allowedOrigins = env.CORS_ORIGINS.split(',').map((o) => o.trim().replace(/\/+$/, ''));
+
   const io = new SocketIOServer(httpServer, {
     cors: {
-      origin: env.CORS_ORIGINS.split(',').map((o) => o.trim()),
+      origin: (requestOrigin, callback) => {
+        if (!requestOrigin) {
+          return callback(null, true);
+        }
+        const normalized = requestOrigin.replace(/\/+$/, '');
+        if (
+          allowedOrigins.includes(normalized) ||
+          normalized.endsWith('.vercel.app') ||
+          normalized.startsWith('http://localhost:') ||
+          normalized === 'http://localhost'
+        ) {
+          return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'), false);
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },

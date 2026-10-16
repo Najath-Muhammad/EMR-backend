@@ -15,9 +15,25 @@ export function createApp(): Application {
 
   app.use(helmet());
 
+  const allowedOrigins = env.CORS_ORIGINS.split(',').map((o) => o.trim().replace(/\/+$/, ''));
+
   app.use(
     cors({
-      origin: env.CORS_ORIGINS.split(',').map((o) => o.trim()),
+      origin: (requestOrigin, callback) => {
+        if (!requestOrigin) {
+          return callback(null, true);
+        }
+        const normalized = requestOrigin.replace(/\/+$/, '');
+        if (
+          allowedOrigins.includes(normalized) ||
+          normalized.endsWith('.vercel.app') ||
+          normalized.startsWith('http://localhost:') ||
+          normalized === 'http://localhost'
+        ) {
+          return callback(null, true);
+        }
+        return callback(null, false);
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Accept', 'Origin'],
