@@ -15,18 +15,15 @@ import { ROLES } from '../constants/roles';
 
 const router = Router();
 
-// Composition root for department module
 const departmentRepo = new DepartmentRepository();
 const staffRepo = new StaffRepository();
 const departmentService = new DepartmentService(departmentRepo, staffRepo);
 const departmentController = new DepartmentController(departmentService);
 
-// Publicly active for dropdowns / authenticated staff
 router.get('/active', authenticate, (req, res, next) => {
   departmentController.listActive(req, res).catch(next);
 });
 
-// Paginated department list
 router.get(
   '/',
   authenticate,
@@ -40,7 +37,6 @@ router.get('/:id', authenticate, (req, res, next) => {
   departmentController.getById(req, res).catch(next);
 });
 
-// Super Admin exclusive mutation routes
 router.post(
   '/',
   authenticate,

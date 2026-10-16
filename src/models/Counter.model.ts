@@ -15,10 +15,6 @@ const counterSchema = new Schema<CounterDocument>(
 
 export const CounterModel = mongoose.model<CounterDocument>('Counter', counterSchema);
 
-/**
- * Atomically increments and returns the next sequence number for a counter.
- * Safe under concurrent requests and race conditions.
- */
 export async function getNextSequence(name: string): Promise<number> {
   const result = await CounterModel.findByIdAndUpdate(
     name,

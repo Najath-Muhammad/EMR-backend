@@ -85,7 +85,6 @@ const auditLogSchema = new Schema<IAuditLogDocument>(
   },
 );
 
-// Compound indexes for optimal query performance
 auditLogSchema.index({ createdAt: -1 });
 auditLogSchema.index({ action: 1, createdAt: -1 });
 auditLogSchema.index({ entityType: 1, createdAt: -1 });

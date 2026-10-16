@@ -13,9 +13,9 @@ import { DepartmentDocument } from '../../models/Department.model';
 
 export class SlotService implements ISlotService {
   constructor(
-    private readonly scheduleRepo: IScheduleRepository,
-    private readonly staffRepo: IStaffRepository,
-    private readonly appointmentRepo: IAppointmentRepository,
+    private readonly _scheduleRepo: IScheduleRepository,
+    private readonly _staffRepo: IStaffRepository,
+    private readonly _appointmentRepo: IAppointmentRepository,
   ) {}
 
   async getSlots(
@@ -23,125 +23,132 @@ export class SlotService implements ISlotService {
     dateStr: string,
     timezone?: string,
   ): Promise<DaySlotsResultDto> {
-    const tz = timezone || env.HOSPITAL_TIMEZONE || 'UTC';
+    try {
+      const tz = timezone || env.HOSPITAL_TIMEZONE || 'UTC';
 
-    const doctor = await this.staffRepo.findById(doctorId);
-    if (!doctor || doctor.role !== ROLES.DOCTOR) {
-      throw new NotFoundError(MESSAGES.SCHEDULE_DOCTOR_NOT_FOUND);
-    }
+      const doctor = await this._staffRepo.findById(doctorId);
+      if (!doctor || doctor.role !== ROLES.DOCTOR) {
+        throw new NotFoundError(MESSAGES.SCHEDULE_DOCTOR_NOT_FOUND);
+      }
 
-    if (!doctor.isActive) {
-      throw new BadRequestError(MESSAGES.SCHEDULE_DOCTOR_INACTIVE);
-    }
+      if (!doctor.isActive) {
+        throw new BadRequestError(MESSAGES.SCHEDULE_DOCTOR_INACTIVE);
+      }
 
-    const rawDept = doctor.department as unknown as DepartmentDocument;
-    const departmentRef =
-      rawDept && typeof rawDept === 'object' && 'name' in rawDept
-        ? { id: rawDept._id.toString(), name: rawDept.name, code: rawDept.code }
-        : null;
+      const rawDept = doctor.department as unknown as DepartmentDocument;
+      const departmentRef =
+        rawDept && typeof rawDept === 'object' && 'name' in rawDept
+          ? { id: rawDept._id.toString(), name: rawDept.name, code: rawDept.code }
+          : null;
 
-    const doctorRef = {
-      id: doctor._id.toString(),
-      name: doctor.name,
-      specialization: doctor.specialization,
-      department: departmentRef,
-    };
-
-    const schedule = await this.scheduleRepo.findByDoctorId(doctorId);
-    if (!schedule || !schedule.isActive) {
-      const { dayName } = this.getDayInfoForDate(dateStr, tz);
-      return {
-        doctor: doctorRef,
-        date: dateStr,
-        dayOfWeek: dayName,
-        slotDuration: 15,
-        totalSlots: 0,
-        availableSlots: 0,
-        slots: [],
+      const doctorRef = {
+        id: doctor._id.toString(),
+        name: doctor.name,
+        specialization: doctor.specialization,
+        department: departmentRef,
       };
-    }
 
-    const { dayOfWeek, dayName } = this.getDayInfoForDate(dateStr, tz);
-    const dayConfig = schedule.workingDays.find((d) => d.dayOfWeek === dayOfWeek);
+      const schedule = await this._scheduleRepo.findByDoctorId(doctorId);
+      if (!schedule || !schedule.isActive) {
+        const { dayName } = this.getDayInfoForDate(dateStr, tz);
+        return {
+          doctor: doctorRef,
+          date: dateStr,
+          dayOfWeek: dayName,
+          slotDuration: 15,
+          totalSlots: 0,
+          availableSlots: 0,
+          slots: [],
+        };
+      }
 
-    if (!dayConfig || !dayConfig.isEnabled) {
+      const { dayOfWeek, dayName } = this.getDayInfoForDate(dateStr, tz);
+      const dayConfig = schedule.workingDays.find((d) => d.dayOfWeek === dayOfWeek);
+
+      if (!dayConfig || !dayConfig.isEnabled) {
+        return {
+          doctor: doctorRef,
+          date: dateStr,
+          dayOfWeek: dayName,
+          slotDuration: schedule.slotDuration,
+          totalSlots: 0,
+          availableSlots: 0,
+          slots: [],
+        };
+      }
+
+      const bookedAppointments = await this._appointmentRepo.findByDoctorAndDate(doctorId, dateStr);
+      const bookedRanges = bookedAppointments.map((app) => ({
+        start: timeToMinutes(app.startTime),
+        end: timeToMinutes(app.endTime),
+      }));
+
+      const slots = this.generateSlotsForDay(
+        dayConfig as WorkingDayInput,
+        schedule.slotDuration,
+        dateStr,
+        tz,
+        bookedRanges,
+      );
+
       return {
         doctor: doctorRef,
         date: dateStr,
         dayOfWeek: dayName,
         slotDuration: schedule.slotDuration,
-        totalSlots: 0,
-        availableSlots: 0,
-        slots: [],
+        totalSlots: slots.length,
+        availableSlots: slots.filter((s) => s.isAvailable).length,
+        slots,
       };
+    } catch (error) {
+      throw error;
     }
-
-    // Active booked appointments on this date
-    const bookedAppointments = await this.appointmentRepo.findByDoctorAndDate(doctorId, dateStr);
-    const bookedRanges = bookedAppointments.map((app) => ({
-      start: timeToMinutes(app.startTime),
-      end: timeToMinutes(app.endTime),
-    }));
-
-    const slots = this.generateSlotsForDay(
-      dayConfig as WorkingDayInput,
-      schedule.slotDuration,
-      dateStr,
-      tz,
-      bookedRanges,
-    );
-
-    return {
-      doctor: doctorRef,
-      date: dateStr,
-      dayOfWeek: dayName,
-      slotDuration: schedule.slotDuration,
-      totalSlots: slots.length,
-      availableSlots: slots.filter((s) => s.isAvailable).length,
-      slots,
-    };
   }
 
   async previewSlots(input: PreviewSlotsInput): Promise<DaySlotsResultDto> {
-    const tz = input.timezone || env.HOSPITAL_TIMEZONE || 'UTC';
-    const { dayOfWeek, dayName } = this.getDayInfoForDate(input.date, tz);
+    try {
+      const tz = input.timezone || env.HOSPITAL_TIMEZONE || 'UTC';
+      const { dayOfWeek, dayName } = this.getDayInfoForDate(input.date, tz);
 
-    const dayConfig = input.schedule.workingDays.find((d) => d.dayOfWeek === dayOfWeek);
+      const dayConfig = input.schedule.workingDays.find((d) => d.dayOfWeek === dayOfWeek);
 
-    const doctorRef = {
-      id: 'preview-doctor-id',
-      name: 'Preview Doctor',
-    };
+      const doctorRef = {
+        id: 'preview-doctor-id',
+        name: 'Preview Doctor',
+      };
 
-    if (!input.schedule.isActive || !dayConfig || !dayConfig.isEnabled) {
+      if (!input.schedule.isActive || !dayConfig || !dayConfig.isEnabled) {
+        return {
+          doctor: doctorRef,
+          date: input.date,
+          dayOfWeek: dayName,
+          slotDuration: input.schedule.slotDuration,
+          totalSlots: 0,
+          availableSlots: 0,
+          slots: [],
+        };
+      }
+
+      const slots = this.generateSlotsForDay(
+        dayConfig,
+        input.schedule.slotDuration,
+        input.date,
+        tz,
+        [],
+      );
+
       return {
         doctor: doctorRef,
         date: input.date,
         dayOfWeek: dayName,
         slotDuration: input.schedule.slotDuration,
-        totalSlots: 0,
-        availableSlots: 0,
-        slots: [],
+        totalSlots: slots.length,
+        availableSlots: slots.filter((s) => s.isAvailable).length,
+        slots,
       };
+    } catch (error) {
+      throw error;
     }
-
-    const slots = this.generateSlotsForDay(
-      dayConfig,
-      input.schedule.slotDuration,
-      input.date,
-      tz,
-      [], // no existing bookings in preview mode
-    );
-
-    return {
-      doctor: doctorRef,
-      date: input.date,
-      dayOfWeek: dayName,
-      slotDuration: input.schedule.slotDuration,
-      totalSlots: slots.length,
-      availableSlots: slots.filter((s) => s.isAvailable).length,
-      slots,
-    };
   }
 
   private generateSlotsForDay(
@@ -154,7 +161,6 @@ export class SlotService implements ISlotService {
     const slots: SlotResponseDto[] = [];
     const { isPastDate, isToday, currentTimeMinutes } = this.getTimeComparison(dateStr, tz);
 
-    // Sort sessions chronologically
     const sortedSessions = [...dayConfig.sessions].sort(
       (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime),
     );
@@ -163,21 +169,17 @@ export class SlotService implements ISlotService {
       let currentStartMin = timeToMinutes(session.startTime);
       const sessionEndMin = timeToMinutes(session.endTime);
 
-      // Generate non-overlapping slots completely within session
       while (currentStartMin + slotDuration <= sessionEndMin) {
         const currentEndMin = currentStartMin + slotDuration;
         const slotStartStr = minutesToTime(currentStartMin);
         const slotEndStr = minutesToTime(currentEndMin);
 
-        // Check if slot overlaps with ANY break on this day
-        // Overlap: slotStart < breakEnd && slotEnd > breakStart
         const hitsBreak = dayConfig.breaks.some((brk) => {
           const breakStart = timeToMinutes(brk.startTime);
           const breakEnd = timeToMinutes(brk.endTime);
           return currentStartMin < breakEnd && currentEndMin > breakStart;
         });
 
-        // Never generate slots during breaks
         if (!hitsBreak) {
           let isAvailable = true;
           let reason: SlotUnavailableReason | undefined = undefined;
@@ -189,7 +191,6 @@ export class SlotService implements ISlotService {
             isAvailable = false;
             reason = 'PAST_TIME';
           } else {
-            // Check if slot overlaps an existing booking
             const isBooked = bookedRanges.some(
               (b) => currentStartMin < b.end && currentEndMin > b.start,
             );
@@ -221,7 +222,6 @@ export class SlotService implements ISlotService {
     tz: string,
   ): { dayOfWeek: number; dayName: string } {
     const [year, month, day] = dateStr.split('-').map(Number);
-    // Construct noon UTC date to avoid DST border issues
     const utcDate = new Date(Date.UTC(year!, month! - 1, day!, 12, 0, 0));
 
     const formatter = new Intl.DateTimeFormat('en-US', {
@@ -258,7 +258,7 @@ export class SlotService implements ISlotService {
       month: '2-digit',
       day: '2-digit',
     });
-    const todayStr = dateFormatter.format(now); // YYYY-MM-DD
+    const todayStr = dateFormatter.format(now);
 
     const timeFormatter = new Intl.DateTimeFormat('en-GB', {
       timeZone: tz,

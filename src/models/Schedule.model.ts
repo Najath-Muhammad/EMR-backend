@@ -1,20 +1,20 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
 export interface ISession {
-  startTime: string; // HH:mm (24-hour format)
-  endTime: string;   // HH:mm (24-hour format)
+  startTime: string;
+  endTime: string;
   label?: string;
 }
 
 export interface IBreak {
-  startTime: string; // HH:mm (24-hour format)
-  endTime: string;   // HH:mm (24-hour format)
+  startTime: string;
+  endTime: string;
   label?: string;
 }
 
 export interface IWorkingDay {
-  dayOfWeek: number; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  dayName: string;   // 'SUNDAY', 'MONDAY', etc.
+  dayOfWeek: number;
+  dayName: string;
   isEnabled: boolean;
   sessions: ISession[];
   breaks: IBreak[];
@@ -22,7 +22,7 @@ export interface IWorkingDay {
 
 export interface ISchedule {
   doctor: Types.ObjectId;
-  slotDuration: number; // minutes: 15, 20, 30, 45, 60
+  slotDuration: number;
   workingDays: IWorkingDay[];
   isActive: boolean;
   createdAt: Date;

@@ -16,7 +16,7 @@ export interface PatientDocument extends Document {
   fullName: string;
   phone: string;
   normalizedPhone: string;
-  dateOfBirth: string; // YYYY-MM-DD
+  dateOfBirth: string;
   gender: Gender;
   email?: string;
   address?: string;
@@ -113,7 +113,6 @@ const patientSchema = new Schema<PatientDocument>(
   },
 );
 
-// Compound index for duplicate detection on full name + date of birth
 patientSchema.index({ fullName: 1, dateOfBirth: 1 });
 
 export const PatientModel = mongoose.model<PatientDocument>('Patient', patientSchema);

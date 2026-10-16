@@ -50,6 +50,6 @@ export function hashToken(token: string): string {
 
 export function calculateRefreshTokenExpiry(): Date {
   const expiry = new Date();
-  expiry.setDate(expiry.getDate() + 7); // 7 days default
+  expiry.setDate(expiry.getDate() + 7);
   return expiry;
 }

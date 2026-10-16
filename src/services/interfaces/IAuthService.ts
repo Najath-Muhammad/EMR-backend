@@ -18,4 +18,3 @@ export interface IAuthService {
   logout(rawRefreshToken?: string, context?: RequestContext): Promise<void>;
   getCurrentUser(userId: string): Promise<UserResponseDto>;
 }
-

@@ -66,4 +66,3 @@ export const AUDIT_LOG_ROUTES = {
   ROOT: '/',
   BY_ID: '/:id',
 } as const;
-

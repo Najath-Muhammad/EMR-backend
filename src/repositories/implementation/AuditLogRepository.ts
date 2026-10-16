@@ -66,7 +66,6 @@ export class AuditLogRepository implements IAuditLogRepository {
         query['actor.userId'] = new Types.ObjectId(filter.actorUserId);
       }
 
-      // Date range filtering on createdAt
       if (filter.startDate || filter.endDate) {
         query.createdAt = {};
         if (filter.startDate) {
@@ -85,7 +84,6 @@ export class AuditLogRepository implements IAuditLogRepository {
         }
       }
 
-      // Free text search
       if (filter.search && filter.search.trim().length > 0) {
         const escaped = escapeRegex(filter.search.trim());
         const regex = new RegExp(escaped, 'i');

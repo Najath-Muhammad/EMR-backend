@@ -33,21 +33,22 @@ import { IAuditLogService } from '../interfaces/IAuditLogService';
 
 export class AppointmentService implements IAppointmentService {
   constructor(
-    private readonly appointmentRepo: IAppointmentRepository,
-    private readonly patientRepo: IPatientRepository,
-    private readonly staffRepo: IStaffRepository,
-    private readonly departmentRepo: IDepartmentRepository,
-    private readonly scheduleRepo: IScheduleRepository,
-    private readonly realtimeService?: IRealtimeService,
-    private readonly auditLogService?: IAuditLogService,
+    private readonly _appointmentRepo: IAppointmentRepository,
+    private readonly _patientRepo: IPatientRepository,
+    private readonly _staffRepo: IStaffRepository,
+    private readonly _departmentRepo: IDepartmentRepository,
+    private readonly _scheduleRepo: IScheduleRepository,
+    private readonly _realtimeService?: IRealtimeService,
+    private readonly _auditLogService?: IAuditLogService,
   ) {}
 
   async bookAppointment(
     input: CreateAppointmentInput,
     creatorUserId: string,
   ): Promise<AppointmentResponseDto> {
-    // 0. Look up creator and validate role / department restrictions
-    const creator = await this.staffRepo.findById(creatorUserId);
+    try {
+
+    const creator = await this._staffRepo.findById(creatorUserId);
     if (!creator) {
       throw new UnauthorizedError(MESSAGES.UNAUTHORIZED);
     }
@@ -65,7 +66,6 @@ export class AppointmentService implements IAppointmentService {
         throw new BadRequestError('Receptionist does not have an assigned department');
       }
 
-      // If receptionist explicitly supplied a departmentId, verify it matches their assigned department
       if (input.departmentId && input.departmentId !== creatorDeptId) {
         throw new ForbiddenError(MESSAGES.RECEPTIONIST_DEPT_RESTRICTED);
       }
@@ -77,25 +77,21 @@ export class AppointmentService implements IAppointmentService {
       }
     }
 
-    // 1. Validate Patient (Universal patient record - any patient can visit any department)
-    const patient = await this.patientRepo.findById(input.patientId);
+    const patient = await this._patientRepo.findById(input.patientId);
     if (!patient || !patient.isActive) {
       throw new NotFoundError(MESSAGES.PATIENT_NOT_FOUND);
     }
 
-    // 2. Validate Doctor
-    const doctor = await this.staffRepo.findById(input.doctorId);
+    const doctor = await this._staffRepo.findById(input.doctorId);
     if (!doctor || doctor.role !== ROLES.DOCTOR || !doctor.isActive) {
       throw new NotFoundError(MESSAGES.SCHEDULE_DOCTOR_NOT_FOUND);
     }
 
-    // 3. Validate Department
-    const department = await this.departmentRepo.findById(effectiveDeptId!);
+    const department = await this._departmentRepo.findById(effectiveDeptId!);
     if (!department || !department.isActive) {
       throw new NotFoundError(MESSAGES.DEPARTMENT_NOT_FOUND);
     }
 
-    // 4. Validate Doctor Department assignment
     const doctorDeptId =
       doctor.department && typeof doctor.department === 'object' && '_id' in (doctor.department as object)
         ? (doctor.department as { _id: { toString(): string } })._id.toString()
@@ -105,7 +101,6 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError(MESSAGES.APPOINTMENT_DOCTOR_MISMATCH_DEPT);
     }
 
-    // 5. Timezone & Past Date/Time validation
     const tz = env.HOSPITAL_TIMEZONE || 'UTC';
     const { isPastDate, isToday, currentTimeMinutes } = this.getTimeComparison(input.date, tz);
     const startMinutes = timeToMinutes(input.startTime);
@@ -115,26 +110,22 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError(MESSAGES.APPOINTMENT_PAST_DATE);
     }
 
-    // 6. Validate Doctor Schedule
-    const schedule = await this.scheduleRepo.findByDoctorId(input.doctorId);
+    const schedule = await this._scheduleRepo.findByDoctorId(input.doctorId);
     if (!schedule || !schedule.isActive) {
       throw new BadRequestError(MESSAGES.APPOINTMENT_NO_SCHEDULE);
     }
 
-    // Slot duration must match configured duration
     const slotDuration = endMinutes - startMinutes;
     if (slotDuration !== schedule.slotDuration) {
       throw new BadRequestError(MESSAGES.APPOINTMENT_INVALID_DURATION);
     }
 
-    // Day of week check
     const { dayOfWeek } = this.getDayInfoForDate(input.date, tz);
     const dayConfig = schedule.workingDays.find((d) => d.dayOfWeek === dayOfWeek);
     if (!dayConfig || !dayConfig.isEnabled) {
       throw new BadRequestError(MESSAGES.APPOINTMENT_DAY_OFF);
     }
 
-    // Session containment check
     const fitsInSession = dayConfig.sessions.some(
       (session) =>
         startMinutes >= timeToMinutes(session.startTime) &&
@@ -144,7 +135,6 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError(MESSAGES.APPOINTMENT_OUTSIDE_SESSION);
     }
 
-    // Break non-overlap check
     const overlapsBreak = dayConfig.breaks.some((brk) => {
       const breakStart = timeToMinutes(brk.startTime);
       const breakEnd = timeToMinutes(brk.endTime);
@@ -154,8 +144,7 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError(MESSAGES.APPOINTMENT_BREAK_CONFLICT);
     }
 
-    // 7. Check for existing active overlapping appointments (read check)
-    const existingAppointments = await this.appointmentRepo.findByDoctorAndDate(
+    const existingAppointments = await this._appointmentRepo.findByDoctorAndDate(
       input.doctorId,
       input.date,
     );
@@ -168,9 +157,8 @@ export class AppointmentService implements IAppointmentService {
       throw new ConflictError(MESSAGES.APPOINTMENT_SLOT_ALREADY_BOOKED);
     }
 
-    // 8. Atomic Creation with duplicate key concurrency protection
     try {
-      const appointment = await this.appointmentRepo.create({
+      const appointment = await this._appointmentRepo.create({
         patient: new Types.ObjectId(input.patientId),
         patientName: patient.fullName,
         doctor: new Types.ObjectId(input.doctorId),
@@ -185,8 +173,8 @@ export class AppointmentService implements IAppointmentService {
       });
 
       const dto = AppointmentMapper.toResponseDto(appointment);
-      this.realtimeService?.emitAppointmentCreated(dto);
-      void this.auditLogService?.log({
+      this._realtimeService?.emitAppointmentCreated(dto);
+      void this._auditLogService?.log({
         action: 'APPOINTMENT_CREATE',
         entityType: 'Appointment',
         entityId: dto.id,
@@ -221,19 +209,22 @@ export class AppointmentService implements IAppointmentService {
       }
       throw err;
     }
+      } catch (error) {
+      throw error;
+    }
   }
 
   async markAsArrived(
     id: string,
     staffUserId: string,
   ): Promise<AppointmentResponseDto> {
-    const appointment = await this.appointmentRepo.findById(id);
+    try {
+    const appointment = await this._appointmentRepo.findById(id);
     if (!appointment) {
       throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
     }
 
-    // Check staff role & department scoping if receptionist
-    const staff = await this.staffRepo.findById(staffUserId);
+    const staff = await this._staffRepo.findById(staffUserId);
     if (!staff) {
       throw new UnauthorizedError(MESSAGES.UNAUTHORIZED);
     }
@@ -268,15 +259,15 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError(MESSAGES.APPOINTMENT_CANNOT_TRANSITION);
     }
 
-    const updated = await this.appointmentRepo.update(id, {
+    const updated = await this._appointmentRepo.update(id, {
       status: 'ARRIVED',
       arrivedAt: new Date(),
       arrivedBy: new Types.ObjectId(staffUserId),
     });
 
     const dto = AppointmentMapper.toResponseDto(updated!);
-    this.realtimeService?.emitAppointmentUpdated(dto, 'STATUS_CHANGED');
-    void this.auditLogService?.log({
+    this._realtimeService?.emitAppointmentUpdated(dto, 'STATUS_CHANGED');
+    void this._auditLogService?.log({
       action: 'APPOINTMENT_ARRIVED',
       entityType: 'Appointment',
       entityId: dto.id,
@@ -293,6 +284,9 @@ export class AppointmentService implements IAppointmentService {
     });
 
     return dto;
+      } catch (error) {
+      throw error;
+    }
   }
 
   async completeAppointment(
@@ -300,12 +294,12 @@ export class AppointmentService implements IAppointmentService {
     requestingUser: RequestingUserContext,
     consultationNotes?: string,
   ): Promise<AppointmentResponseDto> {
-    const appointment = await this.appointmentRepo.findById(id);
+    try {
+    const appointment = await this._appointmentRepo.findById(id);
     if (!appointment) {
       throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
     }
 
-    // Doctor privacy isolation: Doctor can only complete their own appointments
     if (requestingUser.role === ROLES.DOCTOR) {
       const docDoctorId =
         appointment.doctor && typeof appointment.doctor === 'object' && '_id' in (appointment.doctor as object)
@@ -337,10 +331,10 @@ export class AppointmentService implements IAppointmentService {
       updatePayload['consultationNotes'] = consultationNotes.trim();
     }
 
-    const updated = await this.appointmentRepo.update(id, updatePayload);
+    const updated = await this._appointmentRepo.update(id, updatePayload);
     const dto = AppointmentMapper.toResponseDto(updated!);
-    this.realtimeService?.emitAppointmentUpdated(dto, 'STATUS_CHANGED');
-    void this.auditLogService?.log({
+    this._realtimeService?.emitAppointmentUpdated(dto, 'STATUS_CHANGED');
+    void this._auditLogService?.log({
       action: 'APPOINTMENT_COMPLETED',
       entityType: 'Appointment',
       entityId: dto.id,
@@ -356,6 +350,9 @@ export class AppointmentService implements IAppointmentService {
     });
 
     return dto;
+      } catch (error) {
+      throw error;
+    }
   }
 
   async updateAppointment(
@@ -363,14 +360,14 @@ export class AppointmentService implements IAppointmentService {
     requestingUser: RequestingUserContext,
     input: UpdateAppointmentInput,
   ): Promise<AppointmentResponseDto> {
-    const appointment = await this.appointmentRepo.findById(id);
+    try {
+    const appointment = await this._appointmentRepo.findById(id);
     if (!appointment) {
       throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
     }
 
-    // Role check: RECEPTIONIST or SUPER_ADMIN
     if (requestingUser.role === ROLES.RECEPTIONIST) {
-      const staff = await this.staffRepo.findById(requestingUser.userId);
+      const staff = await this._staffRepo.findById(requestingUser.userId);
       const staffDeptId = staff?.department
         ? typeof staff.department === 'object' && '_id' in (staff.department as object)
           ? (staff.department as { _id: { toString(): string } })._id.toString()
@@ -402,10 +399,10 @@ export class AppointmentService implements IAppointmentService {
       updatePayload['notes'] = input.notes.trim();
     }
 
-    const updated = await this.appointmentRepo.update(id, updatePayload);
+    const updated = await this._appointmentRepo.update(id, updatePayload);
     const dto = AppointmentMapper.toResponseDto(updated!);
-    this.realtimeService?.emitAppointmentUpdated(dto, 'UPDATED');
-    void this.auditLogService?.log({
+    this._realtimeService?.emitAppointmentUpdated(dto, 'UPDATED');
+    void this._auditLogService?.log({
       action: 'APPOINTMENT_UPDATE',
       entityType: 'Appointment',
       entityId: dto.id,
@@ -419,6 +416,9 @@ export class AppointmentService implements IAppointmentService {
     });
 
     return dto;
+      } catch (error) {
+      throw error;
+    }
   }
 
   async updateConsultationNotes(
@@ -426,7 +426,8 @@ export class AppointmentService implements IAppointmentService {
     requestingUser: RequestingUserContext,
     notes: string,
   ): Promise<AppointmentResponseDto> {
-    const appointment = await this.appointmentRepo.findById(id);
+    try {
+    const appointment = await this._appointmentRepo.findById(id);
     if (!appointment) {
       throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
     }
@@ -448,13 +449,13 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError(MESSAGES.APPOINTMENT_CANNOT_REOPEN);
     }
 
-    const updated = await this.appointmentRepo.update(id, {
+    const updated = await this._appointmentRepo.update(id, {
       consultationNotes: notes.trim(),
     });
 
     const dto = AppointmentMapper.toResponseDto(updated!);
-    this.realtimeService?.emitAppointmentUpdated(dto, 'UPDATED');
-    void this.auditLogService?.log({
+    this._realtimeService?.emitAppointmentUpdated(dto, 'UPDATED');
+    void this._auditLogService?.log({
       action: 'APPOINTMENT_CONSULTATION_UPDATE',
       entityType: 'Appointment',
       entityId: dto.id,
@@ -468,6 +469,9 @@ export class AppointmentService implements IAppointmentService {
     });
 
     return dto;
+      } catch (error) {
+      throw error;
+    }
   }
 
   async rescheduleAppointment(
@@ -475,7 +479,8 @@ export class AppointmentService implements IAppointmentService {
     requestingUser: RequestingUserContext,
     input: RescheduleAppointmentInput,
   ): Promise<AppointmentResponseDto> {
-    const appointment = await this.appointmentRepo.findById(id);
+    try {
+    const appointment = await this._appointmentRepo.findById(id);
     if (!appointment) {
       throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
     }
@@ -484,9 +489,8 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError(MESSAGES.APPOINTMENT_CANNOT_REOPEN);
     }
 
-    // Check receptionist department restriction
     if (requestingUser.role === ROLES.RECEPTIONIST) {
-      const staff = await this.staffRepo.findById(requestingUser.userId);
+      const staff = await this._staffRepo.findById(requestingUser.userId);
       const staffDeptId = staff?.department
         ? typeof staff.department === 'object' && '_id' in (staff.department as object)
           ? (staff.department as { _id: { toString(): string } })._id.toString()
@@ -515,7 +519,6 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError('Doctor not associated with this appointment');
     }
 
-    // Timezone & Past Date/Time validation for new date/time
     const tz = env.HOSPITAL_TIMEZONE || 'UTC';
     const { isPastDate, isToday, currentTimeMinutes } = this.getTimeComparison(input.date, tz);
     const startMinutes = timeToMinutes(input.startTime);
@@ -525,8 +528,7 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError(MESSAGES.APPOINTMENT_PAST_DATE);
     }
 
-    // Validate Doctor Schedule
-    const schedule = await this.scheduleRepo.findByDoctorId(doctorId);
+    const schedule = await this._scheduleRepo.findByDoctorId(doctorId);
     if (!schedule || !schedule.isActive) {
       throw new BadRequestError(MESSAGES.APPOINTMENT_NO_SCHEDULE);
     }
@@ -560,8 +562,7 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError(MESSAGES.APPOINTMENT_BREAK_CONFLICT);
     }
 
-    // Overlapping appointment check on new date/time, excluding this appointment
-    const existingAppointments = await this.appointmentRepo.findByDoctorAndDate(
+    const existingAppointments = await this._appointmentRepo.findByDoctorAndDate(
       doctorId,
       input.date,
     );
@@ -587,7 +588,7 @@ export class AppointmentService implements IAppointmentService {
     const newHistory = [...(appointment.rescheduleHistory || []), historyEntry];
 
     try {
-      const updated = await this.appointmentRepo.update(id, {
+      const updated = await this._appointmentRepo.update(id, {
         date: input.date,
         startTime: input.startTime,
         endTime: input.endTime,
@@ -596,8 +597,8 @@ export class AppointmentService implements IAppointmentService {
       });
 
       const dto = AppointmentMapper.toResponseDto(updated!);
-      this.realtimeService?.emitAppointmentUpdated(dto, 'RESCHEDULED');
-      void this.auditLogService?.log({
+      this._realtimeService?.emitAppointmentUpdated(dto, 'RESCHEDULED');
+      void this._auditLogService?.log({
         action: 'APPOINTMENT_RESCHEDULED',
         entityType: 'Appointment',
         entityId: dto.id,
@@ -628,6 +629,9 @@ export class AppointmentService implements IAppointmentService {
       }
       throw err;
     }
+      } catch (error) {
+      throw error;
+    }
   }
 
   async cancelAppointment(
@@ -635,12 +639,13 @@ export class AppointmentService implements IAppointmentService {
     staffUserId: string,
     reason?: string,
   ): Promise<AppointmentResponseDto> {
-    const appointment = await this.appointmentRepo.findById(id);
+    try {
+    const appointment = await this._appointmentRepo.findById(id);
     if (!appointment) {
       throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
     }
 
-    const staff = await this.staffRepo.findById(staffUserId);
+    const staff = await this._staffRepo.findById(staffUserId);
     if (staff && staff.role === ROLES.RECEPTIONIST) {
       const staffDeptId = staff.department
         ? typeof staff.department === 'object' && '_id' in (staff.department as object)
@@ -667,7 +672,7 @@ export class AppointmentService implements IAppointmentService {
       throw new BadRequestError(MESSAGES.APPOINTMENT_ALREADY_COMPLETED);
     }
 
-    const updated = await this.appointmentRepo.update(id, {
+    const updated = await this._appointmentRepo.update(id, {
       status: 'CANCELLED',
       cancelledAt: new Date(),
       cancelledBy: new Types.ObjectId(staffUserId),
@@ -675,8 +680,8 @@ export class AppointmentService implements IAppointmentService {
     });
 
     const dto = AppointmentMapper.toResponseDto(updated!);
-    this.realtimeService?.emitAppointmentCancelled(dto);
-    void this.auditLogService?.log({
+    this._realtimeService?.emitAppointmentCancelled(dto);
+    void this._auditLogService?.log({
       action: 'APPOINTMENT_CANCEL',
       entityType: 'Appointment',
       entityId: dto.id,
@@ -694,13 +699,17 @@ export class AppointmentService implements IAppointmentService {
     });
 
     return dto;
+      } catch (error) {
+      throw error;
+    }
   }
 
   async getAppointmentById(
     id: string,
     requestingUser: RequestingUserContext,
   ): Promise<AppointmentResponseDto> {
-    const appointment = await this.appointmentRepo.findById(id);
+    try {
+    const appointment = await this._appointmentRepo.findById(id);
     if (!appointment) {
       throw new NotFoundError(MESSAGES.APPOINTMENT_NOT_FOUND);
     }
@@ -715,7 +724,7 @@ export class AppointmentService implements IAppointmentService {
         throw new ForbiddenError(MESSAGES.FORBIDDEN);
       }
     } else if (requestingUser.role === ROLES.RECEPTIONIST) {
-      const staff = await this.staffRepo.findById(requestingUser.userId);
+      const staff = await this._staffRepo.findById(requestingUser.userId);
       const staffDeptId = staff?.department
         ? typeof staff.department === 'object' && '_id' in (staff.department as object)
           ? (staff.department as { _id: { toString(): string } })._id.toString()
@@ -734,24 +743,27 @@ export class AppointmentService implements IAppointmentService {
     }
 
     return AppointmentMapper.toResponseDto(appointment);
+      } catch (error) {
+      throw error;
+    }
   }
 
   async getAppointments(
     query: AppointmentQuery,
     requestingUser: RequestingUserContext,
   ): Promise<PaginatedAppointmentResponseDto> {
+    try {
     const filter: AppointmentFilter = {};
 
-    // Role-based restrictions:
     if (requestingUser.role === ROLES.DOCTOR) {
-      // DOCTOR only sees their own appointments; reject any attempt to query another doctor
+
       if (query.doctorId && query.doctorId !== requestingUser.userId) {
         throw new ForbiddenError(MESSAGES.FORBIDDEN);
       }
       filter.doctor = requestingUser.userId;
     } else if (requestingUser.role === ROLES.RECEPTIONIST) {
-      // RECEPTIONIST only sees appointments belonging to their assigned department
-      const staff = await this.staffRepo.findById(requestingUser.userId);
+
+      const staff = await this._staffRepo.findById(requestingUser.userId);
       const staffDeptId = staff?.department
         ? typeof staff.department === 'object' && '_id' in (staff.department as object)
           ? (staff.department as { _id: { toString(): string } })._id.toString()
@@ -769,7 +781,7 @@ export class AppointmentService implements IAppointmentService {
         filter.doctor = query.doctorId;
       }
     } else {
-      // SUPER_ADMIN can query any doctor or department optionally
+
       if (query.doctorId) {
         filter.doctor = query.doctorId;
       }
@@ -782,11 +794,10 @@ export class AppointmentService implements IAppointmentService {
       filter.status = query.status;
     }
 
-    // Free-text patient search (Name, Patient ID, Mobile)
     if (query.search && query.search.trim().length > 0) {
-      const patientIds = await this.patientRepo.findIdsBySearchTerm(query.search);
+      const patientIds = await this._patientRepo.findIdsBySearchTerm(query.search);
       if (patientIds.length === 0) {
-        // Fast-path: 0 patients match the search term -> 0 appointments can match
+
         return {
           appointments: [],
           total: 0,
@@ -798,7 +809,6 @@ export class AppointmentService implements IAppointmentService {
       filter.patient = query.patientId;
     }
 
-    // Date / Date range handling
     if (query.date) {
       filter.date = query.date;
     } else {
@@ -820,7 +830,7 @@ export class AppointmentService implements IAppointmentService {
       sortMap['startTime'] = sortOrder;
     }
 
-    const result = await this.appointmentRepo.findPaginated(
+    const result = await this._appointmentRepo.findPaginated(
       filter,
       query.page,
       query.limit,
@@ -832,6 +842,9 @@ export class AppointmentService implements IAppointmentService {
       total: result.total,
       totalPages: result.totalPages,
     };
+      } catch (error) {
+      throw error;
+    }
   }
 
   private getDayInfoForDate(
@@ -875,7 +888,7 @@ export class AppointmentService implements IAppointmentService {
       month: '2-digit',
       day: '2-digit',
     });
-    const todayStr = dateFormatter.format(now); // YYYY-MM-DD
+    const todayStr = dateFormatter.format(now);
 
     const timeFormatter = new Intl.DateTimeFormat('en-GB', {
       timeZone: tz,

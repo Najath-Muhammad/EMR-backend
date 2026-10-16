@@ -10,12 +10,10 @@ import { AuditLogController } from '../controllers/implementation/AuditLogContro
 
 const router = Router();
 
-// Composition root
 const auditLogRepo = new AuditLogRepository();
 const auditLogService = new AuditLogService(auditLogRepo);
 const auditLogController = new AuditLogController(auditLogService);
 
-// 1. Get paginated audit logs (SUPER_ADMIN only)
 router.get(
   AUDIT_LOG_ROUTES.ROOT,
   authenticate,
@@ -30,7 +28,6 @@ router.get(
   },
 );
 
-// 2. Get audit log by ID (SUPER_ADMIN only)
 router.get(
   AUDIT_LOG_ROUTES.BY_ID,
   authenticate,

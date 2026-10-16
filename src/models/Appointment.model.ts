@@ -27,9 +27,9 @@ export interface IAppointment {
   patient?: Types.ObjectId | null;
   patientName?: string;
   department: Types.ObjectId;
-  date: string;       // YYYY-MM-DD
-  startTime: string;  // HH:mm
-  endTime: string;    // HH:mm
+  date: string;
+  startTime: string;
+  endTime: string;
   status: AppointmentStatus;
   purpose: string;
   notes?: string;
@@ -173,9 +173,6 @@ const appointmentSchema = new Schema<IAppointment>(
   },
 );
 
-// Concurrency & Double-Booking Protection:
-// MongoDB partial unique index ensuring no two active appointments exist for the same doctor, date, and startTime
-// Covers SCHEDULED, CONFIRMED, and ARRIVED (patient checked in & waiting)
 appointmentSchema.index(
   { doctor: 1, date: 1, startTime: 1 },
   {

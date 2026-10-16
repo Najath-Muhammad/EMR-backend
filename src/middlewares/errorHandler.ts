@@ -12,7 +12,7 @@ export function errorHandler(
   res: Response,
   _next: NextFunction,
 ): void {
-  // Zod validation errors -> 422
+
   if (err instanceof ZodError) {
     const message = err.errors
       .map((e) => `${e.path.join('.')}: ${e.message}`)
@@ -21,13 +21,11 @@ export function errorHandler(
     return;
   }
 
-  // Known operational application errors
   if (err instanceof AppError && err.isOperational) {
     res.status(err.statusCode).json(errorResponse(err.message));
     return;
   }
 
-  // MongoDB duplicate key error (code 11000) - e.g. atomic unique partial index violation
   if ('code' in err && (err as { code: unknown }).code === 11000) {
     const errObj = err as { keyPattern?: Record<string, unknown>; message?: string };
     if (errObj.keyPattern?.['department'] || errObj.message?.includes('department')) {
@@ -38,7 +36,6 @@ export function errorHandler(
     return;
   }
 
-  // Unknown / programmer errors - log internally, return sanitized message to client
   logger.error('Unexpected internal error', {
     name: err.name,
     message: err.message,

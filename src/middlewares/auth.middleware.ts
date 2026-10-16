@@ -1,19 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { TokenExpiredError } from 'jsonwebtoken';
-import { verifyAccessToken, AccessTokenPayload } from '../utils/token.util';
+import { verifyAccessToken } from '../utils/token.util';
 import { Role } from '../constants/roles';
 import { UnauthorizedError, ForbiddenError } from '../errors/AppError';
 import { MESSAGES } from '../constants/messages';
 
-// Augment Express Request interface to include authenticated user
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface Request {
-      user?: AccessTokenPayload;
-    }
-  }
-}
 
 export function authenticate(req: Request, _res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;

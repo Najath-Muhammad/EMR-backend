@@ -1,12 +1,10 @@
 export const MESSAGES = {
-  // Health
+
   HEALTH_OK: 'Service is healthy and running',
 
-  // General
   VALIDATION_FAILED: 'Validation failed',
   OPERATION_SUCCESS: 'Operation completed successfully',
 
-  // Auth
   UNAUTHORIZED: 'Unauthorized access',
   FORBIDDEN: 'You do not have permission to perform this action',
   INVALID_CREDENTIALS: 'Invalid email or password',
@@ -21,7 +19,6 @@ export const MESSAGES = {
   ME_SUCCESS: 'Current user retrieved successfully',
   USER_INACTIVE: 'Account is deactivated. Please contact an administrator',
 
-  // Department
   DEPARTMENT_CREATED: 'Department created successfully',
   DEPARTMENT_UPDATED: 'Department updated successfully',
   DEPARTMENT_STATUS_UPDATED: 'Department status updated successfully',
@@ -30,7 +27,6 @@ export const MESSAGES = {
   DEPARTMENT_INVALID: 'Selected department is invalid or does not exist',
   DEPARTMENT_INACTIVE_ASSIGNMENT: 'Cannot assign staff to an inactive department',
 
-  // Staff
   STAFF_CREATED: 'Staff account created successfully and invitation link generated',
   STAFF_UPDATED: 'Staff member updated successfully',
   STAFF_STATUS_UPDATED: 'Staff status updated successfully',
@@ -44,7 +40,6 @@ export const MESSAGES = {
   ACTIVATION_TOKEN_INVALID: 'Invalid or expired invitation token. Please request a new invitation.',
   ACTIVATION_LINK_RESENT: 'Activation link has been regenerated successfully',
 
-  // Schedule & Slots
   SCHEDULE_SAVED: 'Doctor schedule saved successfully',
   SCHEDULE_FETCHED: 'Doctor schedule fetched successfully',
   SCHEDULE_NOT_FOUND: 'Doctor schedule not found',
@@ -57,7 +52,6 @@ export const MESSAGES = {
   SLOTS_PREVIEW_GENERATED: 'Slot preview generated successfully',
   DOCTOR_NOT_SCHEDULED: 'Doctor has no active schedule for the selected day',
 
-  // Patient
   PATIENT_CREATED: 'Patient registered successfully',
   PATIENT_FETCHED: 'Patient details retrieved successfully',
   PATIENTS_FETCHED: 'Patients list retrieved successfully',
@@ -66,11 +60,9 @@ export const MESSAGES = {
   PATIENT_NOT_FOUND: 'Patient record not found',
   PATIENT_ID_EXISTS: 'A patient with this identifier already exists',
 
-  // Resources
   NOT_FOUND: 'The requested resource was not found',
   ALREADY_EXISTS: 'Resource already exists',
 
-  // Appointments
   APPOINTMENT_CREATED: 'Appointment booked successfully',
   APPOINTMENT_FETCHED: 'Appointment details retrieved successfully',
   APPOINTMENTS_FETCHED: 'Appointments retrieved successfully',
@@ -97,11 +89,9 @@ export const MESSAGES = {
   APPOINTMENT_DOCTOR_ONLY_CONSULTATION: 'Only the attending physician can edit consultation notes',
   RECEPTIONIST_DEPT_RESTRICTED: 'Receptionists can only schedule appointments within their assigned department',
 
-  // Audit Logs
   AUDIT_LOGS_FETCHED: 'Audit logs retrieved successfully',
   AUDIT_LOG_FETCHED: 'Audit log details retrieved successfully',
   AUDIT_LOG_NOT_FOUND: 'Audit log record not found',
 
-  // Server
   SERVER_ERROR: 'An unexpected error occurred. Please try again later.',
 } as const;

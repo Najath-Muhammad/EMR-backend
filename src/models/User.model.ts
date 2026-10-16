@@ -83,7 +83,6 @@ const userSchema = new Schema<IUser>(
   },
 );
 
-// Atomic Invariant: At most one active receptionist per department
 userSchema.index(
   { department: 1 },
   {

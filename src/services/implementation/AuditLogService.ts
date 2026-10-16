@@ -10,7 +10,7 @@ import { MESSAGES } from '../../constants/messages';
 import { logger } from '../../utils/logger';
 
 export class AuditLogService implements IAuditLogService {
-  constructor(private readonly auditLogRepo: IAuditLogRepository) {}
+  constructor(private readonly _auditLogRepo: IAuditLogRepository) {}
 
   async log(entry: CreateAuditLogInput): Promise<void> {
     try {
@@ -26,7 +26,7 @@ export class AuditLogService implements IAuditLogService {
         };
       }
 
-      await this.auditLogRepo.create({
+      await this._auditLogRepo.create({
         action: entry.action,
         entityType: entry.entityType,
         entityId: entry.entityId,
@@ -46,40 +46,48 @@ export class AuditLogService implements IAuditLogService {
   }
 
   async getAuditLogs(query: AuditLogQuery): Promise<PaginatedResult<AuditLogResponseDto>> {
-    const filter = {
-      action: query.action,
-      entityType: query.entityType,
-      status: query.status,
-      search: query.search,
-      startDate: query.startDate,
-      endDate: query.endDate,
-    };
+    try {
+      const filter = {
+        action: query.action,
+        entityType: query.entityType,
+        status: query.status,
+        search: query.search,
+        startDate: query.startDate,
+        endDate: query.endDate,
+      };
 
-    const options = {
-      page: query.page,
-      limit: query.limit,
-      sortBy: query.sortBy,
-      sortOrder: query.sortOrder,
-    };
-
-    const { items, total } = await this.auditLogRepo.findPaginated(filter, options);
-
-    return {
-      items: items.map((item) => AuditLogMapper.toResponseDto(item)),
-      meta: {
+      const options = {
         page: query.page,
         limit: query.limit,
-        total,
-        totalPages: Math.ceil(total / query.limit) || 1,
-      },
-    };
+        sortBy: query.sortBy,
+        sortOrder: query.sortOrder,
+      };
+
+      const { items, total } = await this._auditLogRepo.findPaginated(filter, options);
+
+      return {
+        items: items.map((item) => AuditLogMapper.toResponseDto(item)),
+        meta: {
+          page: query.page,
+          limit: query.limit,
+          total,
+          totalPages: Math.ceil(total / query.limit) || 1,
+        },
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
   async getAuditLogById(id: string): Promise<AuditLogResponseDto> {
-    const item = await this.auditLogRepo.findById(id);
-    if (!item) {
-      throw new NotFoundError(MESSAGES.AUDIT_LOG_NOT_FOUND);
+    try {
+      const item = await this._auditLogRepo.findById(id);
+      if (!item) {
+        throw new NotFoundError(MESSAGES.AUDIT_LOG_NOT_FOUND);
+      }
+      return AuditLogMapper.toResponseDto(item);
+    } catch (error) {
+      throw error;
     }
-    return AuditLogMapper.toResponseDto(item);
   }
 }

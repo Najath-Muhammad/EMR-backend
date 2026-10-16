@@ -25,7 +25,6 @@ import { AuditLogService } from '../services/implementation/AuditLogService';
 
 const router = Router();
 
-// Composition Root
 const appointmentRepo = new AppointmentRepository();
 const patientRepo = new PatientRepository();
 const staffRepo = new StaffRepository();
@@ -46,7 +45,6 @@ const appointmentService = new AppointmentService(
 
 const appointmentController = new AppointmentController(appointmentService);
 
-// 1. Get appointments list (SUPER_ADMIN, RECEPTIONIST, DOCTOR)
 router.get(
   APPOINTMENT_ROUTES.ROOT,
   authenticate,
@@ -61,7 +59,6 @@ router.get(
   },
 );
 
-// 2. Book an appointment (SUPER_ADMIN, RECEPTIONIST)
 router.post(
   APPOINTMENT_ROUTES.ROOT,
   authenticate,
@@ -76,7 +73,6 @@ router.post(
   },
 );
 
-// 3. Get appointment by ID (SUPER_ADMIN, RECEPTIONIST, DOCTOR)
 router.get(
   APPOINTMENT_ROUTES.BY_ID,
   authenticate,
@@ -90,7 +86,6 @@ router.get(
   },
 );
 
-// 4. Update appointment purpose and notes (SUPER_ADMIN, RECEPTIONIST)
 router.patch(
   APPOINTMENT_ROUTES.BY_ID,
   authenticate,
@@ -105,7 +100,6 @@ router.patch(
   },
 );
 
-// 5. Mark as arrived (SUPER_ADMIN, RECEPTIONIST)
 router.patch(
   APPOINTMENT_ROUTES.ARRIVE,
   authenticate,
@@ -119,7 +113,6 @@ router.patch(
   },
 );
 
-// 6. Complete appointment (SUPER_ADMIN, DOCTOR)
 router.patch(
   APPOINTMENT_ROUTES.COMPLETE,
   authenticate,
@@ -134,7 +127,6 @@ router.patch(
   },
 );
 
-// 7. Update consultation notes (SUPER_ADMIN, DOCTOR)
 router.patch(
   APPOINTMENT_ROUTES.CONSULTATION,
   authenticate,
@@ -149,7 +141,6 @@ router.patch(
   },
 );
 
-// 8. Reschedule appointment (SUPER_ADMIN, RECEPTIONIST)
 router.patch(
   APPOINTMENT_ROUTES.RESCHEDULE,
   authenticate,
@@ -164,7 +155,6 @@ router.patch(
   },
 );
 
-// 9. Cancel appointment (SUPER_ADMIN, RECEPTIONIST) - support both PATCH and POST
 router.patch(
   APPOINTMENT_ROUTES.CANCEL,
   authenticate,

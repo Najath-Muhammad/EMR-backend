@@ -16,7 +16,6 @@ const router = Router();
 import { AuditLogRepository } from '../repositories/implementation/AuditLogRepository';
 import { AuditLogService } from '../services/implementation/AuditLogService';
 
-// Composition root
 const staffRepo = new StaffRepository();
 const scheduleRepo = new ScheduleRepository();
 const appointmentRepo = new AppointmentRepository();
@@ -27,7 +26,6 @@ const scheduleService = new ScheduleService(scheduleRepo, staffRepo, appointment
 const doctorController = new DoctorController(staffRepo, scheduleRepo);
 const scheduleController = new ScheduleController(scheduleService);
 
-// 1. Doctor listing & details
 router.get('/', authenticate, validateQuery(paginationSchema), (req, res, next) => {
   doctorController.list(req, res).catch(next);
 });
@@ -36,12 +34,10 @@ router.get('/:id', authenticate, (req, res, next) => {
   doctorController.getById(req, res).catch(next);
 });
 
-// 2. Doctor Schedule endpoints
 router.get('/:id/schedule', authenticate, (req, res, next) => {
   scheduleController.getSchedule(req, res).catch(next);
 });
 
-// Only Super Admin can configure or modify official schedules
 router.put(
   '/:id/schedule',
   authenticate,

@@ -6,13 +6,12 @@ import { logger } from './utils/logger';
 import { initSocket } from './socket';
 
 async function bootstrap(): Promise<void> {
-  // Connect to MongoDB first
+
   await connectDB();
 
   const app = createApp();
   const httpServer = http.createServer(app);
 
-  // Socket.IO initialized with authenticated handshakes & room isolation
   initSocket(httpServer);
 
   httpServer.listen(env.PORT, () => {
@@ -21,7 +20,6 @@ async function bootstrap(): Promise<void> {
     logger.info(`   API Base    : http://localhost:${env.PORT}/api/v1`);
   });
 
-  // Graceful shutdown
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`${signal} received — shutting down gracefully…`);
     httpServer.close(() => {

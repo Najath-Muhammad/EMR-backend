@@ -18,7 +18,6 @@ import { AuditLogService } from '../services/implementation/AuditLogService';
 
 const router = Router();
 
-// Composition root for staff module
 const staffRepo = new StaffRepository();
 const departmentRepo = new DepartmentRepository();
 const auditLogRepo = new AuditLogRepository();
@@ -26,7 +25,6 @@ const auditLogService = new AuditLogService(auditLogRepo);
 const staffService = new StaffService(staffRepo, departmentRepo, auditLogService);
 const staffController = new StaffController(staffService);
 
-// Super Admin exclusive staff management routes
 router.get(
   '/',
   authenticate,

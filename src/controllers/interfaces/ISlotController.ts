@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 
 export interface ISlotController {
-  getSlots(req: Request, res: Response): Promise<void>;
-  previewSlots(req: Request, res: Response): Promise<void>;
+  getSlots(req: Request, res: Response, next?: NextFunction): Promise<void>;
+  previewSlots(req: Request, res: Response, next?: NextFunction): Promise<void>;
 }

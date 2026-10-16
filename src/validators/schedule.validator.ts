@@ -54,7 +54,6 @@ export const workingDaySchema = z
   .superRefine((day, ctx) => {
     if (!day.isEnabled) return;
 
-    // 1. Check for overlapping sessions
     const sortedSessions = [...day.sessions].sort(
       (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime),
     );
@@ -71,7 +70,6 @@ export const workingDaySchema = z
       }
     }
 
-    // 2. Check for overlapping breaks
     const sortedBreaks = [...day.breaks].sort(
       (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime),
     );
@@ -88,7 +86,6 @@ export const workingDaySchema = z
       }
     }
 
-    // 3. Ensure each break is completely within at least one working session
     for (const brk of day.breaks) {
       const breakStart = timeToMinutes(brk.startTime);
       const breakEnd = timeToMinutes(brk.endTime);

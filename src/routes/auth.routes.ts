@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { AUTH_ROUTES } from '../constants/routes';
-import { ROLES } from '../constants/roles';
 import { UserRepository } from '../repositories/implementation/UserRepository';
 import { RefreshTokenRepository } from '../repositories/implementation/RefreshTokenRepository';
 import { StaffRepository } from '../repositories/implementation/StaffRepository';
@@ -12,15 +11,12 @@ import { StaffController } from '../controllers/implementation/StaffController';
 import { validateBody } from '../middlewares/validate.middleware';
 import { loginSchema } from '../validators/auth.validator';
 import { activateAccountSchema } from '../validators/staff.validator';
-import { authenticate, authorize } from '../middlewares/auth.middleware';
-import { successResponse } from '../dtos/ApiResponse';
-
+import { authenticate } from '../middlewares/auth.middleware';
 import { AuditLogRepository } from '../repositories/implementation/AuditLogRepository';
 import { AuditLogService } from '../services/implementation/AuditLogService';
 
 const router = Router();
 
-// Composition root for auth & staff activation
 const userRepository = new UserRepository();
 const refreshTokenRepository = new RefreshTokenRepository();
 const auditLogRepo = new AuditLogRepository();
@@ -37,21 +33,21 @@ router.post(
   AUTH_ROUTES.LOGIN,
   validateBody(loginSchema),
   (req, res, next) => {
-    authController.login(req, res).catch(next);
+    authController.login(req, res, next).catch(next);
   },
 );
 
 router.post(
   AUTH_ROUTES.REFRESH,
   (req, res, next) => {
-    authController.refresh(req, res).catch(next);
+    authController.refresh(req, res, next).catch(next);
   },
 );
 
 router.post(
   AUTH_ROUTES.LOGOUT,
   (req, res, next) => {
-    authController.logout(req, res).catch(next);
+    authController.logout(req, res, next).catch(next);
   },
 );
 
@@ -59,26 +55,15 @@ router.get(
   AUTH_ROUTES.ME,
   authenticate,
   (req, res, next) => {
-    authController.getMe(req, res).catch(next);
+    authController.getMe(req, res, next).catch(next);
   },
 );
 
-// Public account activation for invited staff
 router.post(
   AUTH_ROUTES.ACTIVATE,
   validateBody(activateAccountSchema),
   (req, res, next) => {
-    staffController.activate(req, res).catch(next);
-  },
-);
-
-// Protected endpoint to verify role authorization
-router.get(
-  '/admin-only',
-  authenticate,
-  authorize(ROLES.SUPER_ADMIN),
-  (_req, res) => {
-    res.json(successResponse('Admin area accessed', { secret: 'admin_data' }));
+    staffController.activate(req, res, next).catch(next);
   },
 );
 

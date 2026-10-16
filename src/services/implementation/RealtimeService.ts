@@ -11,11 +11,19 @@ export class RealtimeService implements IRealtimeService {
   private io: SocketIOServer | null = null;
 
   setIO(io: SocketIOServer): void {
-    this.io = io;
+    try {
+      this.io = io;
+    } catch (error) {
+      throw error;
+    }
   }
 
   getIO(): SocketIOServer | null {
-    return this.io;
+    try {
+      return this.io;
+    } catch (error) {
+      throw error;
+    }
   }
 
   private resolveIds(appointment: AppointmentResponseDto): {
@@ -40,55 +48,70 @@ export class RealtimeService implements IRealtimeService {
     action: RealtimeAppointmentAction,
     appointment: AppointmentResponseDto,
   ): void {
-    if (!this.io) {
-      logger.debug(`RealtimeService: Socket.IO not initialized, skipping broadcast of ${eventName}`);
-      return;
+    try {
+      if (!this.io) {
+        logger.debug(`RealtimeService: Socket.IO not initialized, skipping broadcast of ${eventName}`);
+        return;
+      }
+
+      const { departmentId, doctorId } = this.resolveIds(appointment);
+      const payload: AppointmentRealtimePayload = {
+        action,
+        appointment,
+        departmentId,
+        doctorId,
+        timestamp: new Date().toISOString(),
+      };
+
+      this.io.to('role:SUPER_ADMIN').emit(eventName, payload);
+
+      if (departmentId) {
+        this.io.to(`department:${departmentId}`).emit(eventName, payload);
+      }
+
+      if (doctorId) {
+        this.io.to(`doctor:${doctorId}`).emit(eventName, payload);
+      }
+
+      logger.debug(`Broadcast ${eventName} [${action}]`, {
+        appointmentId: appointment.id,
+        departmentId,
+        doctorId,
+      });
+    } catch (error) {
+      logger.error('Failed to broadcast realtime event', {
+        eventName,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
-
-    const { departmentId, doctorId } = this.resolveIds(appointment);
-    const payload: AppointmentRealtimePayload = {
-      action,
-      appointment,
-      departmentId,
-      doctorId,
-      timestamp: new Date().toISOString(),
-    };
-
-    // 1. Super Admin room gets all events
-    this.io.to('role:SUPER_ADMIN').emit(eventName, payload);
-
-    // 2. Department room for receptionists assigned to this department
-    if (departmentId) {
-      this.io.to(`department:${departmentId}`).emit(eventName, payload);
-    }
-
-    // 3. Doctor room exclusively for the assigned doctor
-    if (doctorId) {
-      this.io.to(`doctor:${doctorId}`).emit(eventName, payload);
-    }
-
-    logger.debug(`Broadcast ${eventName} [${action}]`, {
-      appointmentId: appointment.id,
-      departmentId,
-      doctorId,
-    });
   }
 
   emitAppointmentCreated(appointment: AppointmentResponseDto): void {
-    this.broadcast('appointment:created', 'CREATED', appointment);
+    try {
+      this.broadcast('appointment:created', 'CREATED', appointment);
+    } catch (error) {
+      throw error;
+    }
   }
 
   emitAppointmentUpdated(
     appointment: AppointmentResponseDto,
     action: RealtimeAppointmentAction = 'UPDATED',
   ): void {
-    this.broadcast('appointment:updated', action, appointment);
+    try {
+      this.broadcast('appointment:updated', action, appointment);
+    } catch (error) {
+      throw error;
+    }
   }
 
   emitAppointmentCancelled(appointment: AppointmentResponseDto): void {
-    this.broadcast('appointment:cancelled', 'CANCELLED', appointment);
+    try {
+      this.broadcast('appointment:cancelled', 'CANCELLED', appointment);
+    } catch (error) {
+      throw error;
+    }
   }
 }
 
-// Global instance for injection across composition roots
 export const realtimeService = new RealtimeService();

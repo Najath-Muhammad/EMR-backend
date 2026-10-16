@@ -16,13 +16,11 @@ import { PatientController } from '../controllers/implementation/PatientControll
 
 const router = Router();
 
-// Dependency Injection
 const patientRepo = new PatientRepository();
 const deptRepo = new DepartmentRepository();
 const patientService = new PatientService(patientRepo, deptRepo);
 const patientController = new PatientController(patientService);
 
-// Search and List patients (Super Admin, Receptionist, Doctor)
 router.get(
   PATIENT_ROUTES.ROOT,
   authenticate,
@@ -37,7 +35,6 @@ router.get(
   },
 );
 
-// Check potential duplicates before registration (Super Admin, Receptionist)
 router.post(
   PATIENT_ROUTES.CHECK_DUPLICATES,
   authenticate,
@@ -52,7 +49,6 @@ router.post(
   },
 );
 
-// Register a new patient (Super Admin, Receptionist)
 router.post(
   PATIENT_ROUTES.ROOT,
   authenticate,
@@ -67,7 +63,6 @@ router.post(
   },
 );
 
-// Get patient profile by ID or patientId (Super Admin, Receptionist, Doctor)
 router.get(
   PATIENT_ROUTES.BY_ID,
   authenticate,
@@ -81,7 +76,6 @@ router.get(
   },
 );
 
-// Update patient details (Super Admin, Receptionist)
 router.put(
   PATIENT_ROUTES.BY_ID,
   authenticate,

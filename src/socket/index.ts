@@ -23,7 +23,6 @@ export function initSocket(httpServer: http.Server): SocketIOServer {
     },
   });
 
-  // Socket Authentication Middleware
   io.use(async (socket: Socket, next) => {
     try {
       const rawToken =
@@ -61,7 +60,6 @@ export function initSocket(httpServer: http.Server): SocketIOServer {
     }
   });
 
-  // Connection Handler & Server-Enforced Room Subscription
   io.on('connection', (socket: Socket) => {
     const user: AuthenticatedSocketUser | undefined = socket.data.user;
     if (!user) {
@@ -75,7 +73,6 @@ export function initSocket(httpServer: http.Server): SocketIOServer {
       departmentId: user.departmentId,
     });
 
-    // Enforce role- and department-specific room isolation strictly on the server:
     if (user.role === ROLES.SUPER_ADMIN) {
       void socket.join('role:SUPER_ADMIN');
     } else if (user.role === ROLES.RECEPTIONIST) {
@@ -91,7 +88,6 @@ export function initSocket(httpServer: http.Server): SocketIOServer {
     });
   });
 
-  // Wire RealtimeService with the active Socket.IO server
   realtimeService.setIO(io);
 
   return io;
